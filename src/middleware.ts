@@ -55,7 +55,14 @@ export async function middleware(req: NextRequest) {
   const authenticated = await verifyToken(token);
 
   // Protect API routes that require admin auth — return JSON 401
-  if (pathname.startsWith("/api/admin") || pathname.startsWith("/api/scan")) {
+  // Exclude login/logout endpoints which must be publicly accessible
+  const isProtectedApi =
+    (pathname.startsWith("/api/admin") &&
+      pathname !== "/api/admin/login" &&
+      pathname !== "/api/admin/logout") ||
+    pathname.startsWith("/api/scan");
+
+  if (isProtectedApi) {
     if (!authenticated) {
       return NextResponse.json(
         { error: "No autorizado" },
