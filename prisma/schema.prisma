@@ -1,0 +1,124 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DATABASE_URL_UNPOOLED")
+}
+
+model Event {
+  id             String       @id @default(cuid())
+  slug           String       @unique
+  title          String
+  subtitle       String?
+  description    String
+  date           DateTime
+  doorsOpenTime  String?      @default("22:00")
+  venue          String
+  address        String
+  city           String       @default("Buenos Aires")
+  coverImage     String
+  bannerImage    String?
+  ageRestriction String?      @default("+18 años")
+  status         String       @default("PUBLISHED") // DRAFT, PUBLISHED, SOLD_OUT, CANCELLED
+  featured       Boolean      @default(false)
+  lineup         String?      // JSON string of artists/DJs
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  tiers          TicketTier[]
+  orders         Order[]
+
+  @@index([status])
+  @@index([date])
+}
+
+model TicketTier {
+  id          String   @id @default(cuid())
+  eventId     String
+  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  price       Float
+  serviceFee  Float    @default(0)
+  capacity    Int
+  sold        Int      @default(0)
+  maxPerOrder Int      @default(6)
+  status      String   @default("AVAILABLE") // AVAILABLE, SOLD_OUT, HIDDEN
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tickets     Ticket[]
+
+  @@index([eventId])
+  @@index([status])
+}
+
+model Order {
+  id            String   @id @default(cuid())
+  orderNumber   String   @unique
+  eventId       String
+  event         Event    @relation(fields: [eventId], references: [id])
+  buyerName     String
+  buyerLastName String
+  buyerEmail    String
+  buyerPhone    String
+  buyerDni      String
+  subtotal      Float
+  serviceFee    Float
+  total         Float
+  status        String   @default("PAID") // PENDING, PAID, CANCELLED
+  paymentMethod String   @default("SIMULATED") // SIMULATED, MERCADOPAGO, TRANSFERENCIA
+  paymentId     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tickets       Ticket[]
+
+  @@index([eventId])
+  @@index([buyerEmail])
+  @@index([buyerDni])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Ticket {
+  id               String       @id @default(cuid())
+  ticketCode       String       @unique // Hash/UUID para el QR
+  orderId          String
+  order            Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  tierId           String
+  tier             TicketTier   @relation(fields: [tierId], references: [id])
+  attendeeName     String
+  attendeeLastName String
+  attendeeDni      String
+  attendeeEmail    String?
+  price            Float
+  status           String       @default("VALID") // VALID, USED, CANCELLED
+  checkedInAt      DateTime?
+  checkedInBy      String?
+  createdAt        DateTime     @default(now())
+
+  checkInLogs      CheckInLog[]
+
+  @@index([orderId])
+  @@index([tierId])
+  @@index([attendeeDni])
+  @@index([status])
+}
+
+model CheckInLog {
+  id         String   @id @default(cuid())
+  ticketId   String
+  ticket     Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  scannedAt  DateTime @default(now())
+  status     String   // SUCCESS, DUPLICATE, FAILED
+  deviceInfo String?
+  notes      String?
+
+  @@index([ticketId])
+  @@index([scannedAt])
+  @@index([status])
+}
