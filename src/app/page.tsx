@@ -38,7 +38,7 @@ export default async function HomePage() {
               <span className="w-1 bg-amber-400 rounded-full soundwave-bar-3" />
               <span className="w-1 bg-amber-500 rounded-full soundwave-bar-4" />
             </div>
-            <span className="tracking-wider">LA PLATAFORMA DE TICKETS PARA LA MOVIDA TROPICAL</span>
+            <span className="tracking-wider">LA PLATAFORMA DE TICKETS PARA LA COMUNIDAD CUMBIERA</span>
             <div className="flex items-end gap-0.5 h-3.5">
               <span className="w-1 bg-amber-500 rounded-full soundwave-bar-4" />
               <span className="w-1 bg-amber-400 rounded-full soundwave-bar-3" />
@@ -50,10 +50,10 @@ export default async function HomePage() {
           {/* Main Hero Headline */}
           <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black tracking-tight text-[#FAF6EE] uppercase max-w-4xl mx-auto leading-[0.95] flex flex-col items-center animate-fade-in-up animation-delay-100">
             <span className="block mb-2 drop-shadow-[0_0_25px_rgba(245,158,11,0.35)]">
-              VIVÍ EL RITMO
+              LOS MEJORES EVENTOS
             </span>
             <span className="whitespace-nowrap relative inline-block bg-[#0A0907] text-amber-300 text-2xl sm:text-4xl lg:text-5xl px-5 py-2.5 sm:px-8 sm:py-3.5 -rotate-1 border-[2px] border-amber-400 shadow-[0_0_25px_rgba(245,158,11,0.45)]">
-              SIN FILAS NI REVENTA
+              VIVÍ, BAILÁ, DISFRUTÁ
             </span>
           </h1>
 
