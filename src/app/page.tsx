@@ -2,7 +2,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import EventCard from "@/components/EventCard";
 import ExploreButton from "@/components/ExploreButton";
-import { Sparkles, Flame, Shield, QrCode, Ticket, ArrowRight, Zap, Music } from "lucide-react";
+import { Sparkles, Flame, Shield, QrCode, Ticket, Zap, Music } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -200,42 +200,6 @@ export default async function HomePage() {
               status={evt.status}
             />
           ))}
-        </div>
-      </section>
-
-      {/* Scanner & Admin Banner */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-[#1A1610] via-[#12100C] to-[#0A0907] border-2 border-amber-500/40 p-8 md:p-12 shadow-[0_0_40px_rgba(245,158,11,0.18)]">
-          {/* Subtle neon glow in corner */}
-          <div className="absolute top-0 right-0 w-[250px] h-[250px] bg-amber-500/10 rounded-full blur-[90px] pointer-events-none" />
-
-          <div className="max-w-2xl space-y-4 relative z-10">
-            <span className="px-3 py-1 rounded-full bg-amber-400/15 text-amber-300 border border-amber-400/30 text-xs font-black uppercase tracking-wider inline-block shadow-[0_0_12px_rgba(245,158,11,0.2)]">
-              Para Productores & Personal de Puerta
-            </span>
-            <h3 className="text-3xl sm:text-4xl font-black text-[#FAF6EE] uppercase leading-tight">
-              Control de acceso en tiempo real sin equipamiento caro
-            </h3>
-            <p className="text-sm text-[#CEC1AD] leading-relaxed font-medium">
-              Escaneá los códigos QR desde cualquier celular conectado a internet. El sistema avisa si la entrada es original, evita reutilización por capturas de pantalla y lleva la cuenta de ingresados al instante.
-            </p>
-            <div className="pt-2 flex flex-wrap items-center gap-4">
-              <Link
-                href="/admin/scanner"
-                className="px-6 py-3.5 rounded-xl bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 text-black font-black text-xs uppercase tracking-wider transition-all duration-200 shadow-[0_0_20px_rgba(245,158,11,0.4)] hover:shadow-[0_0_30px_rgba(245,158,11,0.7)] hover:scale-105 border border-amber-200 flex items-center gap-2 cursor-pointer"
-              >
-                <QrCode className="w-4 h-4" />
-                Abrir Escáner de Puerta
-              </Link>
-              <Link
-                href="/admin"
-                className="px-6 py-3.5 rounded-xl bg-[#181511] text-[#FAF6EE] font-black text-xs hover:text-amber-300 transition-all border border-[#332B21] hover:border-amber-400/60 shadow-md flex items-center gap-2 cursor-pointer"
-              >
-                Panel de Administración
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-          </div>
         </div>
       </section>
     </div>
