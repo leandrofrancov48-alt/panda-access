@@ -147,19 +147,12 @@ export default async function OrderConfirmationPage({ params }: Props) {
       </div>
 
       {/* Next Actions */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t border-[#1C2236]">
+      <div className="flex items-center justify-center pt-6 border-t border-[#1C2236]">
         <Link
           href="/"
           className="text-xs font-bold text-gray-400 hover:text-white transition-colors"
         >
           ← Volver a la cartelera
-        </Link>
-        <Link
-          href="/admin/scanner"
-          className="px-5 py-2.5 rounded-xl bg-[#181C2E] hover:bg-[#222840] border border-[#273252] text-xs font-bold text-[#FFE600] flex items-center gap-2 transition-colors"
-        >
-          <ShieldCheck className="w-4 h-4" />
-          Probar validación en el Scanner de Puerta
         </Link>
       </div>
     </div>

@@ -93,6 +93,22 @@ export async function POST(req: Request) {
       });
     }
 
+    if (ticket.status === "PENDING") {
+      return NextResponse.json({
+        status: "INVALID",
+        message: "Esta entrada tiene pago pendiente de acreditación. No se puede ingresar hasta que se confirme el pago.",
+        ticket: {
+          ticketCode: ticket.ticketCode,
+          attendeeName: ticket.attendeeName,
+          attendeeLastName: ticket.attendeeLastName,
+          attendeeDni: ticket.attendeeDni,
+          status: ticket.status,
+          tier: { name: ticket.tier.name },
+          order: { orderNumber: ticket.order.orderNumber },
+        },
+      });
+    }
+
     // Valid ticket: Mark as used atomically (protects against concurrent dual scans)
     const checkedInAt = new Date();
     const updateResult = await db.ticket.updateMany({

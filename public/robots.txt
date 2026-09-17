@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Allow: /eventos/
+
+Disallow: /admin/
+Disallow: /api/
+Disallow: /checkout/
+Disallow: /tickets/
+Disallow: /confirmacion/
+
+Sitemap: https://pandaaccess.com.ar/sitemap.xml

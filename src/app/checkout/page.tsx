@@ -31,6 +31,7 @@ interface TierDetail {
 
 interface EventData {
   id: string;
+  slug: string;
   title: string;
   date: string;
   venue: string;
@@ -295,7 +296,7 @@ function CheckoutContent() {
       {/* Breadcrumb */}
       <div>
         <Link
-          href={`/eventos/${event.id}`}
+          href={`/eventos/${event.slug}`}
           className="inline-flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-white transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -326,7 +327,7 @@ function CheckoutContent() {
           </div>
           {(errorMessage.includes("agotarse") || errorMessage.includes("cupo")) && (
             <Link
-              href={`/eventos/${event.id}`}
+              href={`/eventos/${event.slug}`}
               className="shrink-0 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-extrabold text-xs transition-colors uppercase"
             >
               Cambiar Sector

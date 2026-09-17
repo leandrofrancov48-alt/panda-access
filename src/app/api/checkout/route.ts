@@ -85,7 +85,7 @@ export async function POST(req: Request) {
     }
 
     const total = subtotal + serviceFee;
-    const orderNumber = `CT-${Math.floor(10000 + Math.random() * 90000)}`;
+    const orderNumber = `CT-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
 
     // Create tickets list
     const ticketsToCreate = attendees.map((att) => {
