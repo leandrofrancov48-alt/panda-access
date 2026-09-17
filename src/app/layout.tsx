@@ -14,9 +14,12 @@ export const metadata: Metadata = {
   description: "La plataforma directa y segura de venta de entradas para los mejores recitales y fiestas. Acceso con código QR, sin filas y 100% digital.",
   keywords: ["panda access", "entradas", "tickets", "recitales", "fiestas", "cumbia"],
   icons: {
-    icon: "/logo.png",
-    shortcut: "/logo.png",
-    apple: "/logo.png",
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/icon.png", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: "/apple-icon.png",
   },
 };
 
