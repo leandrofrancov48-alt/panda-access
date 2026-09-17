@@ -27,26 +27,31 @@ export default function Navbar() {
 
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center gap-7">
-          <Link
-            href="/"
-            className="text-sm font-black text-[#CEC1AD] hover:text-amber-300 hover:drop-shadow-[0_0_8px_rgba(245,158,11,0.6)] transition-all"
+          <a
+            href="/#eventos"
+            onClick={(e) => {
+              if (window.location.pathname === "/") {
+                e.preventDefault();
+                document.getElementById("eventos")?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }
+            }}
+            className="text-sm font-black text-[#CEC1AD] hover:text-amber-300 hover:drop-shadow-[0_0_8px_rgba(245,158,11,0.6)] transition-all cursor-pointer"
           >
-            Cartelera
-          </Link>
-          <Link
-            href="/admin/scanner"
-            className="text-sm font-black text-[#CEC1AD] hover:text-amber-300 hover:drop-shadow-[0_0_8px_rgba(245,158,11,0.6)] flex items-center gap-1.5 transition-all"
+            Próximos Shows
+          </a>
+          <a
+            href="/#destacados"
+            onClick={(e) => {
+              if (window.location.pathname === "/") {
+                e.preventDefault();
+                document.getElementById("destacados")?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }
+            }}
+            className="text-sm font-black text-[#CEC1AD] hover:text-amber-300 hover:drop-shadow-[0_0_8px_rgba(245,158,11,0.6)] flex items-center gap-1.5 transition-all cursor-pointer"
           >
-            <QrCode className="w-4 h-4 text-amber-400" />
-            Escanear en Puerta
-          </Link>
-          <Link
-            href="/admin"
-            className="text-sm font-black text-[#CEC1AD] hover:text-amber-300 hover:drop-shadow-[0_0_8px_rgba(245,158,11,0.6)] flex items-center gap-1.5 transition-all"
-          >
-            <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            Panel Admin
-          </Link>
+            <Flame className="w-4 h-4 text-amber-400 fill-amber-400/30" />
+            Destacados
+          </a>
         </nav>
 
         {/* Action Button */}
@@ -81,29 +86,33 @@ export default function Navbar() {
       {/* Mobile dropdown */}
       {mobileMenuOpen && (
         <div className="md:hidden bg-[#15130F] border-b border-amber-400/30 px-4 pt-4 pb-6 space-y-3 shadow-2xl">
-          <Link
-            href="/"
-            onClick={() => setMobileMenuOpen(false)}
+          <a
+            href="/#eventos"
+            onClick={(e) => {
+              setMobileMenuOpen(false);
+              if (window.location.pathname === "/") {
+                e.preventDefault();
+                document.getElementById("eventos")?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }
+            }}
             className="block py-2 text-base font-black text-[#FAF6EE] hover:text-amber-400 transition-colors"
           >
-            Cartelera de Eventos
-          </Link>
-          <Link
-            href="/admin/scanner"
-            onClick={() => setMobileMenuOpen(false)}
+            Próximos Shows
+          </a>
+          <a
+            href="/#destacados"
+            onClick={(e) => {
+              setMobileMenuOpen(false);
+              if (window.location.pathname === "/") {
+                e.preventDefault();
+                document.getElementById("destacados")?.scrollIntoView({ behavior: "smooth", block: "start" });
+              }
+            }}
             className="flex items-center gap-2 py-2 text-base font-black text-[#FAF6EE] hover:text-amber-400 transition-colors"
           >
-            <QrCode className="w-5 h-5 text-amber-400" />
-            Escanear en Puerta (Staff)
-          </Link>
-          <Link
-            href="/admin"
-            onClick={() => setMobileMenuOpen(false)}
-            className="flex items-center gap-2 py-2 text-base font-black text-[#FAF6EE] hover:text-amber-400 transition-colors"
-          >
-            <ShieldCheck className="w-5 h-5 text-emerald-400" />
-            Panel Organizador
-          </Link>
+            <Flame className="w-4 h-4 text-amber-400 fill-amber-400/30" />
+            Shows Destacados
+          </a>
           <div className="pt-2">
             <a
               href="/#eventos"

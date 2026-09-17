@@ -62,16 +62,9 @@ export default async function HomePage() {
             Tus entradas oficiales para los mejores shows y fiestas de cumbia directo en tu celular. Código QR único e ingreso en segundos por puerta.
           </p>
 
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 animate-fade-in-up animation-delay-300">
+          {/* CTA Button */}
+          <div className="flex items-center justify-center pt-4 animate-fade-in-up animation-delay-300">
             <ExploreButton />
-            <Link
-              href="/admin/scanner"
-              className="w-full sm:w-auto px-6 py-4 rounded-xl bg-[#181511] text-[#CEC1AD] hover:text-white font-black text-sm tracking-wide transition-all duration-300 border-2 border-[#332B21] hover:border-amber-400/70 hover:shadow-[0_0_20px_rgba(245,158,11,0.3)] hover:scale-105 active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <QrCode className="w-4 h-4 text-amber-400" />
-              Probar Scanner de Puerta
-            </Link>
           </div>
 
           {/* Live Trust Badges with Neon Borders */}
