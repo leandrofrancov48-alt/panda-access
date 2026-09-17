@@ -65,12 +65,14 @@ export interface TicketWithOrder {
     price: number;
   };
   order: {
+    id?: string;
     orderNumber: string;
     buyerName: string;
     buyerLastName: string;
     buyerEmail: string;
     buyerPhone: string;
     eventId: string;
+    total?: number;
     event: {
       id: string;
       title: string;
@@ -96,6 +98,12 @@ export default function AdminEventsManager({ events, tickets }: Props) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null);
+
+  // Estado para eliminar venta / entrada de prueba
+  const [saleToDelete, setSaleToDelete] = useState<TicketWithOrder | null>(null);
+  const [isDeletingSale, setIsDeletingSale] = useState(false);
+  const [saleActionSuccess, setSaleActionSuccess] = useState<string | null>(null);
+  const [saleActionError, setSaleActionError] = useState<string | null>(null);
 
   // Selected event details
   const currentEvent = useMemo(() => {
@@ -348,6 +356,33 @@ export default function AdminEventsManager({ events, tickets }: Props) {
       setDeleteError((err as Error).message);
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  // Confirmar eliminación de venta/orden
+  const handleDeleteSaleConfirm = async () => {
+    if (!saleToDelete) return;
+    setIsDeletingSale(true);
+    setSaleActionError(null);
+
+    try {
+      const orderId = saleToDelete.order.id || saleToDelete.order.orderNumber;
+      const res = await fetch(`/api/admin/orders/${orderId}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Error al eliminar la venta.");
+      }
+
+      setSaleActionSuccess(data.message || `Orden #${saleToDelete.order.orderNumber} eliminada exitosamente.`);
+      setSaleToDelete(null);
+      router.refresh();
+      setTimeout(() => setSaleActionSuccess(null), 6000);
+    } catch (err: unknown) {
+      setSaleActionError((err as Error).message);
+    } finally {
+      setIsDeletingSale(false);
     }
   };
 
@@ -650,6 +685,37 @@ export default function AdminEventsManager({ events, tickets }: Props) {
           </div>
         </div>
 
+        {/* Sale Action Alerts */}
+        {saleActionSuccess && (
+          <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs font-bold flex items-center justify-between animate-fade-in">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>{saleActionSuccess}</span>
+            </div>
+            <button
+              onClick={() => setSaleActionSuccess(null)}
+              className="text-gray-400 hover:text-white"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {saleActionError && (
+          <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-300 text-xs font-bold flex items-center justify-between animate-fade-in">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+              <span>{saleActionError}</span>
+            </div>
+            <button
+              onClick={() => setSaleActionError(null)}
+              className="text-gray-400 hover:text-white"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         {/* Filter controls */}
         <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 pt-1">
           {/* Search */}
@@ -691,7 +757,7 @@ export default function AdminEventsManager({ events, tickets }: Props) {
                   <th className="py-3 px-4">Comprador</th>
                   <th className="py-3 px-4">Código QR</th>
                   <th className="py-3 px-4">Estado en Puerta</th>
-                  <th className="py-3 px-4 text-right">Ticket</th>
+                  <th className="py-3 px-4 text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#1B2134] whitespace-nowrap">
@@ -734,14 +800,24 @@ export default function AdminEventsManager({ events, tickets }: Props) {
                       )}
                     </td>
                     <td className="py-3.5 px-4 text-right">
-                      <Link
-                        href={`/tickets/${tkt.ticketCode}`}
-                        target="_blank"
-                        className="inline-flex items-center gap-1 text-[#FFE600] hover:underline font-bold text-xs"
-                      >
-                        Ver QR
-                        <ExternalLink className="w-3 h-3" />
-                      </Link>
+                      <div className="flex items-center justify-end gap-2">
+                        <Link
+                          href={`/tickets/${tkt.ticketCode}`}
+                          target="_blank"
+                          className="inline-flex items-center gap-1 text-[#FFE600] hover:underline font-bold text-xs"
+                        >
+                          Ver QR
+                          <ExternalLink className="w-3 h-3" />
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => setSaleToDelete(tkt)}
+                          className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 border border-red-500/30 transition-all cursor-pointer"
+                          title={`Eliminar venta #${tkt.order.orderNumber} y anular entrada`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -971,6 +1047,115 @@ export default function AdminEventsManager({ events, tickets }: Props) {
                   <>
                     <Trash2 className="w-4 h-4" />
                     Sí, Eliminar Evento
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal para Eliminar Venta / Anular Entrada */}
+      {saleToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="bg-[#15130F] border-2 border-red-500/40 rounded-3xl max-w-md w-full p-6 sm:p-7 space-y-5 shadow-[0_0_50px_rgba(239,68,68,0.25)] relative">
+            <button
+              onClick={() => {
+                if (!isDeletingSale) {
+                  setSaleToDelete(null);
+                  setSaleActionError(null);
+                }
+              }}
+              disabled={isDeletingSale}
+              className="absolute top-5 right-5 text-gray-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-30"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-red-500/15 border border-red-500/30 flex items-center justify-center text-red-400 shrink-0">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-white uppercase tracking-wide">
+                  ¿Eliminar Venta?
+                </h3>
+                <p className="text-xs text-red-400 font-medium">
+                  Se descontará del total y se liberará el cupo
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-2.5 text-xs bg-[#0D0C0A] p-4 rounded-xl border border-[#2E2820]">
+              <div className="flex justify-between items-center pb-2 border-b border-[#221D17]">
+                <span className="text-[#8F8270]">Orden:</span>
+                <span className="font-mono text-amber-300 font-bold">#{saleToDelete.order.orderNumber}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[#8F8270]">Titular:</span>
+                <span className="font-bold text-[#FAF6EE]">{saleToDelete.attendeeName} {saleToDelete.attendeeLastName}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[#8F8270]">DNI:</span>
+                <span className="font-mono text-[#FAF6EE]">{saleToDelete.attendeeDni}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[#8F8270]">Evento:</span>
+                <span className="text-[#FAF6EE] font-medium truncate max-w-[200px]">{saleToDelete.order.event.title}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[#8F8270]">Sector:</span>
+                <span className="text-[#38BDF8] font-semibold">{saleToDelete.tier.name}</span>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t border-[#221D17]">
+                <span className="text-[#8F8270]">Monto Entrada:</span>
+                <span className="text-emerald-400 font-bold">${saleToDelete.price.toLocaleString("es-AR")}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[#8F8270]">Código Ticket:</span>
+                <span className="font-mono text-[11px] text-[#8F8270]">{saleToDelete.ticketCode}</span>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-[#8F8270] leading-relaxed">
+              ⚠️ Al confirmar, se eliminará esta orden de la base de datos, el monto dejará de sumar en la recaudación del panel y la entrada quedará inválida para ingresar en puerta.
+            </p>
+
+            {saleActionError && (
+              <div className="bg-red-500/15 border border-red-500/30 p-3 rounded-xl text-red-300 text-xs flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-red-400" />
+                <span>{saleActionError}</span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setSaleToDelete(null);
+                  setSaleActionError(null);
+                }}
+                disabled={isDeletingSale}
+                className="px-4 py-2.5 rounded-xl bg-[#201C16] hover:bg-[#2A241C] text-[#CEC1AD] hover:text-white text-xs font-bold transition-colors cursor-pointer disabled:opacity-40 border border-[#332B21]"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                onClick={handleDeleteSaleConfirm}
+                disabled={isDeletingSale}
+                className="px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-black flex items-center gap-2 transition-all cursor-pointer shadow-lg shadow-red-600/30 disabled:opacity-50 active:scale-95"
+              >
+                {isDeletingSale ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Eliminando...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    Sí, Eliminar Venta
                   </>
                 )}
               </button>
