@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
+import AppShell from "@/components/AppShell";
 
 const yellowBalloon = localFont({
   src: "./fonts/YellowBalloon.ttf",
@@ -31,15 +30,7 @@ export default function RootLayout({
       <body
         className={`${yellowBalloon.className} min-h-screen flex flex-col transition-colors duration-200 selection:bg-amber-400 selection:text-black bg-[#0C0B09] text-[#FAF6EE]`}
       >
-        <div className="print:hidden">
-          <Navbar />
-        </div>
-        <main className="flex-1 pt-24 pb-12 print:pt-0 print:pb-0">
-          {children}
-        </main>
-        <div className="print:hidden">
-          <Footer />
-        </div>
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );
