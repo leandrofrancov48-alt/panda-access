@@ -5,7 +5,7 @@ const SESSION_COOKIE = "panda_admin_session";
 const SCANNER_COOKIE = "panda_scanner_session";
 const SECRET = process.env.ADMIN_SESSION_SECRET || "panda-access-secret-key-2026-auth";
 const ADMIN_PASS = process.env.ADMIN_PASSWORD || "panda2026";
-const SCANNER_PASS = process.env.SCANNER_PASSWORD || process.env.ADMIN_PASSWORD || "panda2026";
+const SCANNER_PASS = process.env.SCANNER_PASSWORD || "puerta2026";
 
 /**
  * Creates a signed session token for admin

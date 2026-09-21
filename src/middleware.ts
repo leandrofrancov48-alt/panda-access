@@ -59,12 +59,12 @@ export async function middleware(req: NextRequest) {
   const scannerToken = req.cookies.get("panda_scanner_session")?.value;
 
   const adminAuthenticated = await verifyToken(adminToken, "panda-admin");
-  const scannerAuthenticated =
-    adminAuthenticated || (await verifyToken(scannerToken, "panda-scanner"));
+  const scannerAuthenticated = await verifyToken(scannerToken, "panda-scanner");
+  const canScan = scannerAuthenticated || adminAuthenticated;
 
   // 1. API: Scan endpoint (accepts either admin or scanner staff)
   if (pathname.startsWith("/api/scan")) {
-    if (!scannerAuthenticated) {
+    if (!canScan) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
     return NextResponse.next();
