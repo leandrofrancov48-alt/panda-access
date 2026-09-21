@@ -395,7 +395,20 @@ export default function EditEventForm({ event }: { event: EventDataForEdit }) {
               <ImageUpload
                 value={coverImage}
                 onChange={setCoverImage}
-                label="Imagen de Portada (Flyer Vertical o Cuadrado)"
+                label="1. Afiche / Portada (Cartelera)"
+                aspectRatio="vertical"
+                helperText="Imagen tipo flyer que aparece en las tarjetas de la cartelera principal (vertical o cuadrada)."
+                required
+              />
+            </div>
+
+            <div className="sm:col-span-2 border-t border-[#1C2237] pt-4">
+              <ImageUpload
+                value={bannerImage}
+                onChange={setBannerImage}
+                label="2. Banner Horizontal de Cabecera (Detalle del Evento)"
+                aspectRatio="horizontal"
+                helperText="Imagen panorámica/apaisada que se muestra arriba en la página del evento (exactamente la que se ve en la cabecera del show). Si la dejás vacía, se usará el afiche."
               />
             </div>
 

@@ -34,6 +34,7 @@ export default function NewEventPage() {
   const [coverImage, setCoverImage] = useState(
     "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?q=80&w=1200&auto=format&fit=crop"
   );
+  const [bannerImage, setBannerImage] = useState("");
   const [ageRestriction, setAgeRestriction] = useState("+18 años");
 
   // Lineup
@@ -106,6 +107,7 @@ export default function NewEventPage() {
           address,
           city,
           coverImage,
+          bannerImage: bannerImage || coverImage,
           ageRestriction,
           lineup,
           tiers,
@@ -279,17 +281,40 @@ export default function NewEventPage() {
           </div>
         </div>
 
-        {/* Imagen de Portada */}
-        <div className="bg-[#0F121C] border border-[#1E253A] rounded-2xl p-6 space-y-4">
-          <h3 className="text-sm font-black uppercase text-white flex items-center gap-2">
-            <ImageIcon className="w-4 h-4 text-[#38BDF8]" />
-            Imagen de Portada (Afiche)
-          </h3>
+        {/* Imágenes del Evento */}
+        <div className="bg-[#0F121C] border border-[#1E253A] rounded-2xl p-6 space-y-6">
+          <div className="border-b border-[#1E253A] pb-3">
+            <h3 className="text-sm font-black uppercase text-white flex items-center gap-2">
+              <ImageIcon className="w-4 h-4 text-[#38BDF8]" />
+              Afiche y Banner del Evento
+            </h3>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Subí las imágenes desde tu computadora o pegá enlaces directos.
+            </p>
+          </div>
 
-          <ImageUpload
-            value={coverImage}
-            onChange={setCoverImage}
-          />
+          <div className="space-y-6">
+            {/* 1. Afiche / Portada (Cartelera) */}
+            <ImageUpload
+              value={coverImage}
+              onChange={setCoverImage}
+              label="1. Afiche / Imagen de Portada (Cartelera)"
+              aspectRatio="vertical"
+              helperText="Imagen tipo flyer que aparece en las tarjetas de la cartelera principal (vertical o cuadrada)."
+              required
+            />
+
+            <div className="border-t border-[#1C2237] pt-5">
+              {/* 2. Banner Horizontal (Detalle del evento) */}
+              <ImageUpload
+                value={bannerImage}
+                onChange={setBannerImage}
+                label="2. Banner Horizontal de Cabecera (Detalle del Evento)"
+                aspectRatio="horizontal"
+                helperText="Imagen panorámica/apaisada que se muestra arriba en la página del evento. Si no subís una, se adaptará el afiche automáticamente."
+              />
+            </div>
+          </div>
         </div>
 
         {/* Tandas y Precios de Entradas */}
