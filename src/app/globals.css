@@ -350,6 +350,7 @@ textarea::placeholder {
 .card-shimmer {
   position: relative;
   overflow: hidden;
+  transform: translateZ(0);
 }
 
 .card-shimmer::before {
@@ -362,17 +363,18 @@ textarea::placeholder {
   background: linear-gradient(
     45deg,
     transparent 35%,
-    rgba(245, 158, 11, 0.12) 50%,
+    rgba(245, 158, 11, 0.08) 50%,
     transparent 65%
   );
-  transform: translateX(-100%) rotate(25deg);
+  transform: translateX(-100%) rotate(25deg) translateZ(0);
   transition: transform 0.85s cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: none;
-  z-index: 15;
+  z-index: 2;
+  will-change: transform;
 }
 
 .card-shimmer:hover::before {
-  transform: translateX(100%) rotate(25deg);
+  transform: translateX(100%) rotate(25deg) translateZ(0);
 }
 
 /* Flame wiggle animation */

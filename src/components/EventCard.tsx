@@ -40,17 +40,20 @@ export default function EventCard({
   return (
     <Link
       href={`/eventos/${slug}`}
-      className="group relative flex flex-col bg-[#15130F] border border-[#2E2820] hover:border-amber-400/80 hover:shadow-[0_0_30px_rgba(245,158,11,0.28)] rounded-2xl overflow-hidden transition-all duration-300 ease-out hover:-translate-y-2 shadow-xl card-shimmer"
+      className="group relative flex flex-col bg-[#15130F] border border-[#2E2820] hover:border-amber-400/80 hover:shadow-[0_0_30px_rgba(245,158,11,0.28)] rounded-2xl overflow-hidden transition-all duration-300 ease-out hover:-translate-y-1.5 shadow-xl transform-gpu"
     >
       {/* Cover Image Container */}
-      <div className="relative aspect-[16/10] w-full overflow-hidden bg-[#1B1712]">
+      <div className="relative aspect-[16/10] w-full overflow-hidden rounded-t-2xl bg-[#1B1712] isolate">
         <img
           src={coverImage}
           alt={title}
-          className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-108"
+          className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-105 transform-gpu will-change-transform"
+          style={{ backfaceVisibility: "hidden", WebkitBackfaceVisibility: "hidden" }}
           loading="lazy"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#15130F] via-transparent to-black/30" />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#15130F] via-[#15130F]/30 to-black/30 pointer-events-none" />
+        {/* Seamless bottom seal to eliminate any subpixel gap or image edge flicker */}
+        <div className="absolute -bottom-1 left-0 right-0 h-4 bg-gradient-to-t from-[#15130F] to-transparent pointer-events-none z-10" />
 
         {/* Date Pill Badge with Neon Amber Glow */}
         <div className="absolute top-3 left-3 bg-[#0C0B09]/90 backdrop-blur-md text-amber-300 border border-amber-400/50 rounded-xl px-3 py-1.5 flex flex-col items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.3)] transition-transform duration-300 group-hover:scale-105">
