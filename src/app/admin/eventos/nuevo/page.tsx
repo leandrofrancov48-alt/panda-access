@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   Loader2,
 } from "lucide-react";
+import ImageUpload from "@/components/ImageUpload";
 
 export default function NewEventPage() {
   const router = useRouter();
@@ -285,29 +286,10 @@ export default function NewEventPage() {
             Imagen de Portada (Afiche)
           </h3>
 
-          <div>
-            <label className="text-xs font-bold text-gray-300 block mb-1">
-              URL de la Imagen *
-            </label>
-            <input
-              type="url"
-              required
-              value={coverImage}
-              onChange={(e) => setCoverImage(e.target.value)}
-              placeholder="https://images.unsplash.com/..."
-              className="w-full px-4 py-2.5 bg-[#161B2B] border border-[#232B45] rounded-xl text-white text-sm focus:border-[#FFE600] outline-none"
-            />
-          </div>
-
-          {coverImage && (
-            <div className="aspect-[21/9] max-h-48 rounded-xl overflow-hidden bg-black border border-[#232B45]">
-              <img
-                src={coverImage}
-                alt="Preview"
-                className="w-full h-full object-cover"
-              />
-            </div>
-          )}
+          <ImageUpload
+            value={coverImage}
+            onChange={setCoverImage}
+          />
         </div>
 
         {/* Tandas y Precios de Entradas */}

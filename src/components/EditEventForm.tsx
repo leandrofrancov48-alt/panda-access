@@ -17,6 +17,7 @@ import {
   AlertCircle,
   ExternalLink,
 } from "lucide-react";
+import ImageUpload from "@/components/ImageUpload";
 
 export interface EventDataForEdit {
   id: string;
@@ -391,30 +392,11 @@ export default function EditEventForm({ event }: { event: EventDataForEdit }) {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
-              <label className="text-xs font-bold text-gray-300 block mb-1">
-                URL de Imagen de Portada (Flyer Vertical o Cuadrado) *
-              </label>
-              <input
-                type="url"
-                required
+              <ImageUpload
                 value={coverImage}
-                onChange={(e) => setCoverImage(e.target.value)}
-                placeholder="https://..."
-                className="w-full px-4 py-2.5 bg-[#161B2B] border border-[#232B45] rounded-xl text-white text-sm focus:border-[#FFE600] outline-none font-mono text-xs"
+                onChange={setCoverImage}
+                label="Imagen de Portada (Flyer Vertical o Cuadrado)"
               />
-              {coverImage && (
-                <div className="mt-2 flex items-center gap-3">
-                  <div className="w-16 h-20 rounded-lg overflow-hidden border border-white/10 bg-[#080A10]">
-                    <img
-                      src={coverImage}
-                      alt="Preview"
-                      className="w-full h-full object-cover"
-                      onError={(e) => (e.currentTarget.style.display = "none")}
-                    />
-                  </div>
-                  <span className="text-[11px] text-gray-400">Previsualización de portada</span>
-                </div>
-              )}
             </div>
 
             <div>
