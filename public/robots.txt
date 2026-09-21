@@ -3,6 +3,7 @@ Allow: /
 Allow: /eventos/
 
 Disallow: /admin/
+Disallow: /panda-control-2026/
 Disallow: /scanner/
 Disallow: /api/
 Disallow: /checkout/

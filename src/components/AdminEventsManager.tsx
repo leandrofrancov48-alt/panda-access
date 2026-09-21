@@ -482,7 +482,7 @@ export default function AdminEventsManager({ events, tickets }: Props) {
               </Link>
 
               <Link
-                href={`/admin/eventos/${currentEvent.id}/editar`}
+                href={`/panda-control-2026/eventos/${currentEvent.id}/editar`}
                 className="px-3.5 py-1.5 rounded-lg bg-[#FFE600]/15 hover:bg-[#FFE600]/25 border border-[#FFE600]/40 text-xs font-bold text-[#FFE600] flex items-center gap-1.5 w-fit transition-colors"
                 title="Editar información, afiche o tandas de precios"
               >

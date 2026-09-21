@@ -31,7 +31,7 @@ export default function AdminLoginPage() {
       }
 
       // Successful login
-      window.location.href = "/admin";
+      window.location.href = "/panda-control-2026";
     } catch (err: any) {
       setErrorMessage(err.message || "Error al iniciar sesión.");
       setLoading(false);

@@ -101,18 +101,28 @@ export async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // 4. UI: Admin routes (strictly requires admin session)
-  if (pathname.startsWith("/admin") && pathname !== "/admin/login") {
+  // 4. Block old /admin routes completely — redirect to home or return 404
+  if (pathname === "/admin" || pathname.startsWith("/admin/")) {
+    return NextResponse.redirect(new URL("/", req.url));
+  }
+
+  // 5. UI: New secret admin dashboard routes (/panda-control-2026)
+  if (pathname.startsWith("/panda-control-2026")) {
+    // Admin login page
+    if (pathname === "/panda-control-2026/login") {
+      if (adminAuthenticated) {
+        return NextResponse.redirect(new URL("/panda-control-2026", req.url));
+      }
+      return NextResponse.next();
+    }
+
+    // Protected admin views
     if (!adminAuthenticated) {
-      const loginUrl = new URL("/admin/login", req.url);
+      const loginUrl = new URL("/panda-control-2026/login", req.url);
       loginUrl.searchParams.set("from", pathname);
       return NextResponse.redirect(loginUrl);
     }
-  }
-
-  // If already admin authenticated and visits /admin/login, redirect to /admin
-  if (pathname === "/admin/login" && adminAuthenticated) {
-    return NextResponse.redirect(new URL("/admin", req.url));
+    return NextResponse.next();
   }
 
   return NextResponse.next();
@@ -120,10 +130,13 @@ export async function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
+    "/admin",
     "/admin/:path*",
+    "/panda-control-2026",
+    "/panda-control-2026/:path*",
     "/api/admin/:path*",
-    "/scanner/:path*",
     "/scanner",
+    "/scanner/:path*",
     "/api/scan",
   ],
 };

@@ -65,14 +65,14 @@ export default async function AdminDashboardPage() {
 
         <div className="flex items-center gap-3">
           <Link
-            href="/admin/scanner"
+            href="/scanner"
             className="px-4 py-2.5 rounded-xl bg-[#181511] hover:bg-[#201C16] border border-amber-400/50 text-amber-300 text-xs font-black flex items-center gap-2 transition-all shadow-[0_0_12px_rgba(245,158,11,0.2)] cursor-pointer"
           >
             <QrCode className="w-4 h-4 text-amber-400" />
             Scanner en Puerta
           </Link>
           <Link
-            href="/admin/eventos/nuevo"
+            href="/panda-control-2026/eventos/nuevo"
             className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-black text-xs font-black flex items-center gap-2 transition-all shadow-[0_0_20px_rgba(245,158,11,0.4)] hover:shadow-[0_0_30px_rgba(245,158,11,0.65)] hover:scale-105 border border-amber-200 cursor-pointer"
           >
             <Plus className="w-4 h-4" />

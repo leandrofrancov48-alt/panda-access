@@ -6,7 +6,10 @@ import Footer from "@/components/Footer";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isStandalone = pathname?.startsWith("/admin") || pathname?.startsWith("/scanner");
+  const isStandalone =
+    pathname?.startsWith("/panda-control-2026") ||
+    pathname?.startsWith("/scanner") ||
+    pathname?.startsWith("/admin");
 
   if (isStandalone) {
     return <>{children}</>;

@@ -9,14 +9,14 @@ export default function AdminNavbar() {
   const router = useRouter();
 
   // Do not render admin navbar on login page
-  if (pathname === "/admin/login") {
+  if (pathname === "/panda-control-2026/login") {
     return null;
   }
 
   const handleLogout = async () => {
     try {
       await fetch("/api/admin/logout", { method: "POST" });
-      window.location.href = "/admin/login";
+      window.location.href = "/panda-control-2026/login";
     } catch (err) {
       console.error("Logout error:", err);
     }
@@ -27,7 +27,7 @@ export default function AdminNavbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Brand / Staff Badge */}
         <div className="flex items-center gap-4">
-          <Link href="/admin" className="flex items-center gap-2.5 group">
+          <Link href="/panda-control-2026" className="flex items-center gap-2.5 group">
             <img src="/logo.png" alt="Logo Panda" className="w-8 h-8 object-contain" />
             <span className="font-black text-sm text-[#FAF6EE] uppercase tracking-wider hidden sm:inline">
               Panda<span className="text-amber-400">Admin</span>
@@ -43,9 +43,9 @@ export default function AdminNavbar() {
         {/* Quick Nav Links */}
         <nav className="flex items-center gap-2 sm:gap-4 text-xs font-black">
           <Link
-            href="/admin"
+            href="/panda-control-2026"
             className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
-              pathname === "/admin"
+              pathname === "/panda-control-2026"
                 ? "bg-amber-400/15 text-amber-300 border border-amber-400/40"
                 : "text-[#CEC1AD] hover:text-white"
             }`}
@@ -57,7 +57,7 @@ export default function AdminNavbar() {
           <Link
             href="/scanner"
             className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
-              pathname === "/scanner" || pathname === "/admin/scanner"
+              pathname === "/scanner"
                 ? "bg-amber-400/15 text-amber-300 border border-amber-400/40"
                 : "text-[#CEC1AD] hover:text-white"
             }`}
@@ -67,9 +67,9 @@ export default function AdminNavbar() {
           </Link>
 
           <Link
-            href="/admin/eventos/nuevo"
+            href="/panda-control-2026/eventos/nuevo"
             className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
-              pathname === "/admin/eventos/nuevo"
+              pathname === "/panda-control-2026/eventos/nuevo"
                 ? "bg-amber-400/15 text-amber-300 border border-amber-400/40"
                 : "text-[#CEC1AD] hover:text-white"
             }`}

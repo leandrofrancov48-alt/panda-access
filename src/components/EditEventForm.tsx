@@ -202,7 +202,7 @@ export default function EditEventForm({ event }: { event: EventDataForEdit }) {
 
       setSuccessMessage("¡Evento actualizado exitosamente!");
       setTimeout(() => {
-        router.push("/admin");
+        router.push("/panda-control-2026");
         router.refresh();
       }, 800);
     } catch (err: unknown) {
@@ -218,7 +218,7 @@ export default function EditEventForm({ event }: { event: EventDataForEdit }) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <Link
-            href="/admin"
+            href="/panda-control-2026"
             className="inline-flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-white transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -732,7 +732,7 @@ export default function EditEventForm({ event }: { event: EventDataForEdit }) {
         {/* Botones de acción */}
         <div className="flex items-center justify-between gap-4 pt-4 border-t border-[#1E253A]">
           <Link
-            href="/admin"
+            href="/panda-control-2026"
             className="px-5 py-3 rounded-xl bg-[#161B2B] hover:bg-[#20273D] text-gray-300 hover:text-white text-xs font-bold transition-colors"
           >
             Cancelar y Volver

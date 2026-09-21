@@ -71,20 +71,9 @@ export default function Footer() {
 
         <div className="mt-12 pt-8 border-t border-[#2C261E] flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#8F8270] font-semibold">
           <p>© {new Date().getFullYear()} Panda Access. Todos los derechos reservados.</p>
-          <div className="flex items-center gap-4">
-            <Link
-              href="/admin/login"
-              className="text-[#645A4C] hover:text-amber-400 transition-colors flex items-center gap-1 text-[11px]"
-              title="Acceso restringido para organizadores y staff"
-            >
-              <Lock className="w-3 h-3" />
-              Acceso Staff
-            </Link>
-            <span className="text-[#3A3328]">•</span>
-            <p className="flex items-center gap-1.5">
-              Hecho para la fiesta y el ritmo con <Heart className="w-3.5 h-3.5 text-pink-500 fill-pink-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.7)]" />
-            </p>
-          </div>
+          <p className="flex items-center gap-1.5">
+            Hecho para la fiesta y el ritmo con <Heart className="w-3.5 h-3.5 text-pink-500 fill-pink-500 drop-shadow-[0_0_8px_rgba(244,63,94,0.7)]" />
+          </p>
         </div>
       </div>
     </footer>

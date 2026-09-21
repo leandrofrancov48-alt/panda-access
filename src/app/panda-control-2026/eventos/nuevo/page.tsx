@@ -119,7 +119,7 @@ export default function NewEventPage() {
         throw new Error(data.error || "Error al crear el evento.");
       }
 
-      router.push("/admin");
+      router.push("/panda-control-2026");
     } catch (err: unknown) {
       console.error(err);
       setErrorMessage((err as Error).message);
@@ -131,7 +131,7 @@ export default function NewEventPage() {
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
       <div>
         <Link
-          href="/admin"
+          href="/panda-control-2026"
           className="inline-flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-white transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -456,7 +456,7 @@ export default function NewEventPage() {
         {/* Submit */}
         <div className="pt-4 flex justify-end gap-3">
           <Link
-            href="/admin"
+            href="/panda-control-2026"
             className="px-5 py-3 rounded-xl bg-[#181C2E] text-gray-300 text-xs font-bold hover:bg-[#202740] transition-colors"
           >
             Cancelar
