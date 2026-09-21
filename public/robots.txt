@@ -3,6 +3,7 @@ Allow: /
 Allow: /eventos/
 
 Disallow: /admin/
+Disallow: /scanner/
 Disallow: /api/
 Disallow: /checkout/
 Disallow: /tickets/

@@ -6,9 +6,9 @@ import Footer from "@/components/Footer";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isAdmin = pathname?.startsWith("/admin");
+  const isStandalone = pathname?.startsWith("/admin") || pathname?.startsWith("/scanner");
 
-  if (isAdmin) {
+  if (isStandalone) {
     return <>{children}</>;
   }
 

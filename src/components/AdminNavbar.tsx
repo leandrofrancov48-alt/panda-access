@@ -55,9 +55,9 @@ export default function AdminNavbar() {
           </Link>
 
           <Link
-            href="/admin/scanner"
+            href="/scanner"
             className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-all ${
-              pathname === "/admin/scanner"
+              pathname === "/scanner" || pathname === "/admin/scanner"
                 ? "bg-amber-400/15 text-amber-300 border border-amber-400/40"
                 : "text-[#CEC1AD] hover:text-white"
             }`}

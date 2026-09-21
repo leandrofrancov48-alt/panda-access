@@ -2,11 +2,13 @@ import crypto from "crypto";
 import { cookies } from "next/headers";
 
 const SESSION_COOKIE = "panda_admin_session";
+const SCANNER_COOKIE = "panda_scanner_session";
 const SECRET = process.env.ADMIN_SESSION_SECRET || "panda-access-secret-key-2026-auth";
 const ADMIN_PASS = process.env.ADMIN_PASSWORD || "panda2026";
+const SCANNER_PASS = process.env.SCANNER_PASSWORD || process.env.ADMIN_PASSWORD || "panda2026";
 
 /**
- * Creates a signed session token
+ * Creates a signed session token for admin
  */
 export function createSessionToken(): string {
   const timestamp = Date.now().toString();
@@ -18,17 +20,33 @@ export function createSessionToken(): string {
 }
 
 /**
- * Verifies a signed session token
+ * Creates a signed session token for door scanner staff
  */
-export function verifySessionToken(token: string | undefined | null): boolean {
+export function createScannerSessionToken(): string {
+  const timestamp = Date.now().toString();
+  const signature = crypto
+    .createHmac("sha256", SECRET)
+    .update(`panda-scanner:${timestamp}`)
+    .digest("hex");
+  return `${timestamp}:${signature}`;
+}
+
+/**
+ * Verifies a signed session token (admin or scanner)
+ */
+export function verifySessionToken(
+  token: string | undefined | null,
+  role: "admin" | "scanner" = "admin"
+): boolean {
   if (!token) return false;
   const parts = token.split(":");
   if (parts.length !== 2) return false;
 
   const [timestamp, signature] = parts;
+  const prefix = role === "admin" ? "panda-admin" : "panda-scanner";
   const expectedSignature = crypto
     .createHmac("sha256", SECRET)
-    .update(`panda-admin:${timestamp}`)
+    .update(`${prefix}:${timestamp}`)
     .digest("hex");
 
   if (signature !== expectedSignature) return false;
@@ -47,12 +65,31 @@ export function validateAdminPassword(password: string): boolean {
 }
 
 /**
+ * Validates the scanner / door staff password
+ */
+export function validateScannerPassword(password: string): boolean {
+  return password === SCANNER_PASS || password === ADMIN_PASS;
+}
+
+/**
  * Checks if current request has a valid admin session (for Server Components)
  */
 export async function isCurrentUserAdmin(): Promise<boolean> {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
-  return verifySessionToken(token);
+  return verifySessionToken(token, "admin");
 }
 
-export { SESSION_COOKIE };
+/**
+ * Checks if current request has a valid scanner or admin session
+ */
+export async function isCurrentUserScanner(): Promise<boolean> {
+  const cookieStore = await cookies();
+  const adminToken = cookieStore.get(SESSION_COOKIE)?.value;
+  if (verifySessionToken(adminToken, "admin")) return true;
+
+  const scannerToken = cookieStore.get(SCANNER_COOKIE)?.value;
+  return verifySessionToken(scannerToken, "scanner");
+}
+
+export { SESSION_COOKIE, SCANNER_COOKIE };
