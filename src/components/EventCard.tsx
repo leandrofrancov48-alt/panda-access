@@ -41,9 +41,10 @@ export default function EventCard({
     <Link
       href={`/eventos/${slug}`}
       className="group relative flex flex-col bg-[#15130F] border border-[#2E2820] hover:border-amber-400/80 hover:shadow-[0_0_30px_rgba(245,158,11,0.28)] rounded-2xl overflow-hidden transition-all duration-300 ease-out hover:-translate-y-1.5 shadow-xl transform-gpu"
+      style={{ willChange: "transform", transform: "translateZ(0)" }}
     >
       {/* Cover Image Container */}
-      <div className="relative aspect-[16/10] w-full overflow-hidden rounded-t-2xl bg-[#1B1712] isolate">
+      <div className="relative aspect-[16/10] w-full overflow-hidden rounded-t-2xl bg-[#15130F] isolate">
         <img
           src={coverImage}
           alt={title}
@@ -86,8 +87,8 @@ export default function EventCard({
         </div>
       </div>
 
-      {/* Details Container */}
-      <div className="p-5 flex flex-col flex-1 justify-between gap-4">
+      {/* Details Container - Solid background with overlap to seal any gap */}
+      <div className="p-5 flex flex-col flex-1 justify-between gap-4 bg-[#15130F] relative z-10 -mt-2 pt-6 rounded-b-2xl">
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-xs font-semibold text-[#8F8270]">
             <Calendar className="w-3.5 h-3.5 text-amber-400/70" />
