@@ -49,7 +49,8 @@ export function verifySessionToken(
     .update(`${prefix}:${timestamp}`)
     .digest("hex");
 
-  if (signature !== expectedSignature) return false;
+  if (signature.length !== expectedSignature.length) return false;
+  if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature))) return false;
 
   // Max age: 7 days
   const age = Date.now() - parseInt(timestamp, 10);
@@ -61,36 +62,20 @@ export function verifySessionToken(
  * Validates the admin password
  */
 export function validateAdminPassword(password: string): boolean {
-  const p = (password || "").trim();
-  if (!p) return false;
-  const adminPass = (ADMIN_PASS || "panda2026").trim();
-  return (
-    p === adminPass ||
-    p.toLowerCase() === adminPass.toLowerCase() ||
-    p.toLowerCase() === "panda2026"
-  );
+  const p = password || "";
+  const adminPass = process.env.ADMIN_PASSWORD || "";
+  if (!p || !adminPass || p.length !== adminPass.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(p), Buffer.from(adminPass));
 }
 
 /**
  * Validates the scanner / door staff password
  */
 export function validateScannerPassword(password: string): boolean {
-  const p = (password || "").trim();
-  if (!p) return false;
-  const scannerPass = (SCANNER_PASS || "puerta2026").trim();
-  const adminPass = (ADMIN_PASS || "panda2026").trim();
-  const lower = p.toLowerCase();
-
-  return (
-    p === scannerPass ||
-    p === adminPass ||
-    lower === scannerPass.toLowerCase() ||
-    lower === adminPass.toLowerCase() ||
-    lower === "puerta2026" ||
-    lower === "panda2026" ||
-    lower === "puerta" ||
-    lower === "panda"
-  );
+  const p = password || "";
+  const scannerPass = process.env.SCANNER_PASSWORD || "";
+  if (!p || !scannerPass || p.length !== scannerPass.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(p), Buffer.from(scannerPass));
 }
 
 /**

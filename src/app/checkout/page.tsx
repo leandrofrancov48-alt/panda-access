@@ -202,7 +202,7 @@ function CheckoutContent() {
         return copy;
       });
     }
-  }, [buyerName, buyerLastName, buyerDni, sameAsBuyer]);
+  }, [buyerName, buyerLastName, buyerDni, sameAsBuyer, attendees.length]);
 
   const handleAttendeeChange = (index: number, field: string, value: string) => {
     setAttendees((prev) => {

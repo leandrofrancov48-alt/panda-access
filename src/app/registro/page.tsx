@@ -10,9 +10,7 @@ import {
   Phone,
   CreditCard,
   Calendar,
-  ArrowRight,
   Loader2,
-  Sparkles,
   ArrowLeft,
   CheckCircle2,
 } from "lucide-react";
@@ -34,7 +32,10 @@ export default function RegisterPage() {
 function RegisterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectUrl = searchParams.get("redirect") || "/perfil";
+  let redirectUrl = searchParams.get("redirect") || "/perfil";
+  if (!redirectUrl.startsWith("/") || redirectUrl.startsWith("//") || redirectUrl.includes(":")) {
+    redirectUrl = "/perfil";
+  }
 
   const [name, setName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -50,6 +51,11 @@ function RegisterContent() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
+
+    if (dni.length < 7 || dni.length > 9) {
+      setErrorMessage("El DNI debe tener entre 7 y 9 números.");
+      return;
+    }
 
     if (password.length < 6) {
       setErrorMessage("La contraseña debe tener al menos 6 caracteres.");

@@ -104,9 +104,7 @@ export default function ScannerLoginPage() {
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
-            <p className="text-[11px] text-[#8F8270] mt-1">
-              💡 Clave predeterminada de puerta: <span className="font-mono text-amber-300 font-bold">puerta2026</span>
-            </p>
+
           </div>
 
           <button

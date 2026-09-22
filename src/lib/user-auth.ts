@@ -1,28 +1,32 @@
 import crypto from "crypto";
+import { promisify } from "util";
 import { cookies } from "next/headers";
 import { db } from "@/lib/db";
+
+const scryptAsync = promisify(crypto.scrypt);
 
 export const USER_SESSION_COOKIE = "panda_user_session";
 const SECRET = process.env.ADMIN_SESSION_SECRET || "panda-access-secret-key-2026-auth";
 
 /**
- * Hashes a plaintext password using salt + scrypt
+ * Hashes a plaintext password using salt + async scrypt
  */
-export function hashPassword(password: string): string {
+export async function hashPassword(password: string): Promise<string> {
   const salt = crypto.randomBytes(16).toString("hex");
-  const hash = crypto.scryptSync(password, salt, 64).toString("hex");
-  return `${salt}:${hash}`;
+  const derivedKey = (await scryptAsync(password, salt, 64)) as Buffer;
+  return `${salt}:${derivedKey.toString("hex")}`;
 }
 
 /**
- * Verifies a password against stored salt:hash
+ * Verifies a password against stored salt:hash using async scrypt
  */
-export function verifyPassword(password: string, storedHash: string): boolean {
+export async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
   try {
     const [salt, key] = storedHash.split(":");
     if (!salt || !key) return false;
     const keyBuffer = Buffer.from(key, "hex");
-    const derivedKey = crypto.scryptSync(password, salt, 64);
+    const derivedKey = (await scryptAsync(password, salt, 64)) as Buffer;
+    if (keyBuffer.length !== derivedKey.length) return false;
     return crypto.timingSafeEqual(keyBuffer, derivedKey);
   } catch {
     return false;
@@ -62,7 +66,9 @@ export function verifyUserToken(token: string | undefined | null): string | null
     .update(`panda-user:${userId}:${timestamp}`)
     .digest("hex");
 
-  if (signature !== expectedSignature) return null;
+  const sigBuf = Buffer.from(signature);
+  const expBuf = Buffer.from(expectedSignature);
+  if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) return null;
   return userId;
 }
 

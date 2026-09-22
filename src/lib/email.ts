@@ -21,9 +21,28 @@ export interface TicketEmailData {
   }>;
 }
 
+function escapeHtml(str: unknown): string {
+  if (str == null) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 export async function sendTicketConfirmationEmail(data: TicketEmailData): Promise<{ success: boolean; previewUrl?: string }> {
   try {
     const hasSmtp = Boolean(process.env.SMTP_HOST && process.env.SMTP_USER);
+
+    // Escape dynamic strings to prevent HTML injection
+    const safeEventName = escapeHtml(data.eventName);
+    const safeEventVenue = escapeHtml(data.eventVenue);
+    const safeEventAddress = escapeHtml(data.eventAddress);
+    const safeDoorsOpenTime = escapeHtml(data.doorsOpenTime);
+    const safeBuyerName = escapeHtml(data.buyerName);
+    const safeOrderNumber = escapeHtml(data.orderNumber);
+    const safeEventDate = escapeHtml(data.eventDate);
 
     // Generate QR for each ticket to embed as CID attachment
     const ticketsWithQr = await Promise.all(
@@ -33,6 +52,11 @@ export async function sendTicketConfirmationEmail(data: TicketEmailData): Promis
         const cid = `qr_${index}_${t.ticketCode.replace(/[^a-zA-Z0-9]/g, "")}`;
         return {
           ...t,
+          safeTicketCode: escapeHtml(t.ticketCode),
+          safeTierName: escapeHtml(t.tierName),
+          safeAttendeeName: escapeHtml(t.attendeeName),
+          safeAttendeeDni: escapeHtml(t.attendeeDni),
+          safeTicketUrl: encodeURI(t.ticketUrl),
           qrDataUrl,
           base64Data,
           cid,
@@ -46,16 +70,13 @@ export async function sendTicketConfirmationEmail(data: TicketEmailData): Promis
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tus Entradas - ${data.eventName}</title>
+  <title>Tus Entradas - ${safeEventName}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <!--[if !mso]><!-->
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap');
-    body, table, td, p, a, h1, h2, h3, div, span {
-      font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif !important;
-    }
   </style>
   <!--<![endif]-->
 </head>
@@ -67,7 +88,7 @@ export async function sendTicketConfirmationEmail(data: TicketEmailData): Promis
       <div style="background-color: #141828; padding: 26px 20px 22px; text-align: center; border-bottom: 3px solid #F59E0B;">
         <img src="cid:brand_header_logo" alt="PANDA ACCESS" width="240" height="48" style="display: block; width: 240px; max-width: 100%; height: auto; margin: 0 auto; border: 0;" />
         <p style="margin: 10px 0 0; color: #94A3B8; font-size: 13px; font-weight: 600; font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
-          ¡${data.total === 0 ? "Registro confirmado" : "Compra confirmada"}! Orden #${data.orderNumber}
+          ¡${data.total === 0 ? "Registro confirmado" : "Compra confirmada"}! Orden #${safeOrderNumber}
         </p>
       </div>
 
@@ -78,15 +99,15 @@ export async function sendTicketConfirmationEmail(data: TicketEmailData): Promis
         </div>
 
         <h2 style="font-size: 24px; font-weight: 900; margin: 16px 0 8px; color: #FFFFFF; line-height: 1.2; font-family: 'Montserrat', sans-serif;">
-          ${data.eventName}
+          ${safeEventName}
         </h2>
 
         <!-- Event Metadata Box -->
         <div style="background-color: #141828; border: 1px solid #21273C; border-radius: 12px; padding: 16px; margin: 16px 0 24px; font-size: 13px; color: #CBD5E1; line-height: 1.8; font-family: 'Montserrat', sans-serif;">
-          <div>📅 <strong>Fecha:</strong> ${data.eventDate}</div>
-          <div>📍 <strong>Lugar:</strong> ${data.eventVenue} (${data.eventAddress})</div>
-          <div>🚪 <strong>Apertura de puertas:</strong> ${data.doorsOpenTime} hs</div>
-          <div>👤 <strong>Titular:</strong> ${data.buyerName} • <strong>Total:</strong> ${data.total === 0 ? "GRATIS (Acceso Libre)" : "$" + data.total.toLocaleString("es-AR")}</div>
+          <div>📅 <strong>Fecha:</strong> ${safeEventDate}</div>
+          <div>📍 <strong>Lugar:</strong> ${safeEventVenue} (${safeEventAddress})</div>
+          <div>🚪 <strong>Apertura de puertas:</strong> ${safeDoorsOpenTime} hs</div>
+          <div>👤 <strong>Titular:</strong> ${safeBuyerName} • <strong>Total:</strong> ${data.total === 0 ? "GRATIS (Acceso Libre)" : "$" + data.total.toLocaleString("es-AR")}</div>
         </div>
 
         <h3 style="color: #F59E0B; font-size: 15px; font-weight: 800; margin: 24px 0 14px; text-transform: uppercase; letter-spacing: 1px; font-family: 'Montserrat', sans-serif;">
@@ -99,28 +120,28 @@ export async function sendTicketConfirmationEmail(data: TicketEmailData): Promis
             (t) => `
           <div style="background-color: #161A2B; border: 2px dashed #2E3752; border-radius: 16px; padding: 22px 16px; margin-bottom: 22px; text-align: center; font-family: 'Montserrat', sans-serif;">
             <div style="display: inline-block; font-size: 11px; font-weight: 800; color: #38BDF8; background-color: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); padding: 3px 10px; border-radius: 999px; text-transform: uppercase; letter-spacing: 1px; font-family: 'Montserrat', sans-serif;">
-              ${t.tierName}
+              ${t.safeTierName}
             </div>
 
             <div style="font-size: 19px; font-weight: 800; color: #FFFFFF; margin: 10px 0 2px; font-family: 'Montserrat', sans-serif;">
-              ${t.attendeeName}
+              ${t.safeAttendeeName}
             </div>
             <div style="font-size: 13px; color: #94A3B8; font-family: monospace; margin-bottom: 16px;">
-              DNI: ${t.attendeeDni}
+              DNI: ${t.safeAttendeeDni}
             </div>
 
             <!-- QR Code Box -->
             <div style="background-color: #FFFFFF; padding: 14px; border-radius: 14px; display: inline-block; margin: 0 auto; box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
-              <img src="cid:${t.cid}" alt="QR Ticket ${t.ticketCode}" width="180" height="180" style="display: block; width: 180px; height: 180px; margin: 0 auto; border: 0;" />
+              <img src="cid:${t.cid}" alt="QR Ticket ${t.safeTicketCode}" width="180" height="180" style="display: block; width: 180px; height: 180px; margin: 0 auto; border: 0;" />
             </div>
 
             <div style="font-family: monospace; font-size: 12px; font-weight: bold; color: #F59E0B; margin-top: 12px; letter-spacing: 1px;">
-              ${t.ticketCode}
+              ${t.safeTicketCode}
             </div>
 
             <!-- Action Button -->
             <div style="margin-top: 16px;">
-              <a href="${t.ticketUrl}" target="_blank" style="display: inline-block; background-color: #F59E0B; color: #000000; font-weight: 900; font-size: 13px; padding: 12px 24px; border-radius: 10px; text-decoration: none; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Montserrat', sans-serif;">
+              <a href="${t.safeTicketUrl}" target="_blank" style="display: inline-block; background-color: #F59E0B; color: #000000; font-weight: 900; font-size: 13px; padding: 12px 24px; border-radius: 10px; text-decoration: none; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'Montserrat', sans-serif;">
                 Abrir Entrada Digital
               </a>
             </div>

@@ -27,6 +27,7 @@ export default async function EventDetailPage({ params }: Props) {
     where: { slug },
     include: {
       tiers: {
+        where: { status: { not: "HIDDEN" } },
         orderBy: { price: "asc" },
       },
     },
@@ -266,7 +267,7 @@ export default async function EventDetailPage({ params }: Props) {
               </div>
               <ul className="text-xs text-[#94A3B8] space-y-2 list-disc list-inside leading-relaxed">
                 <li>Presentar DNI físico o digital en la app Mi Argentina.</li>
-                <li>Ingreso exclusivo para mayores de 18 años con documento en mano.</li>
+                <li>Ingreso exclusivo para {event.ageRestriction || "mayores de 18 años"} con documento en mano.</li>
                 <li>Prohibido el ingreso con alimentos, bebidas o elementos punzantes.</li>
                 <li>Cada ticket es nominal e intransferible tras ser validado en el lector de puerta.</li>
               </ul>

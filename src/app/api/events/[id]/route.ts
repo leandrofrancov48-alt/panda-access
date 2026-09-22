@@ -15,6 +15,7 @@ export async function GET(req: Request, { params }: Props) {
       },
       include: {
         tiers: {
+          where: { status: { not: "HIDDEN" } },
           orderBy: { price: "asc" },
         },
       },

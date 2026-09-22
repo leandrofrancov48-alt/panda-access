@@ -76,6 +76,11 @@ export async function POST(req: Request) {
 
     // 1. APPROVED PAYMENT
     if (paymentStatus === "approved") {
+      if ((payment.transaction_amount ?? 0) < order.total) {
+        console.error(`[Mercado Pago Webhook] Payment amount (${payment.transaction_amount}) is less than order total (${order.total}) for order ${orderNumber}`);
+        return NextResponse.json({ received: true, error: "Payment amount does not match order total" }, { status: 400 });
+      }
+
       if (order.status !== "PAID") {
         // Mark Order as PAID and update paymentId
         await db.$transaction(async (tx) => {
@@ -149,9 +154,9 @@ export async function POST(req: Request) {
       }
     }
 
-    // 2. CANCELLED / REJECTED PAYMENT -> Release reserved stock
-    if (paymentStatus === "cancelled" || paymentStatus === "rejected") {
-      if (order.status === "PENDING") {
+    // 2. CANCELLED / REJECTED / REFUNDED / CHARGED_BACK PAYMENT -> Release reserved stock
+    if (paymentStatus === "cancelled" || paymentStatus === "rejected" || paymentStatus === "refunded" || paymentStatus === "charged_back") {
+      if (order.status === "PENDING" || order.status === "PAID") {
         await db.$transaction(async (tx) => {
           // Cancel order & tickets
           await tx.order.update({
@@ -177,7 +182,7 @@ export async function POST(req: Request) {
             await tx.$executeRaw`
               UPDATE "TicketTier"
               SET "sold" = GREATEST(0, "sold" - ${count}),
-                  "status" = 'AVAILABLE'
+                  "status" = CASE WHEN "status" = 'SOLD_OUT' THEN 'AVAILABLE'::"TicketTierStatus" ELSE "status" END
               WHERE "id" = ${tierId}
             `;
           }
@@ -190,7 +195,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ received: true });
   } catch (error) {
     console.error("[Mercado Pago Webhook Error]:", error);
-    // Return 200 to prevent infinite retry storms from MP on unhandled code exceptions
-    return NextResponse.json({ received: true, error: "Internal processing error" }, { status: 200 });
+    // Return 500 to prevent infinite retry storms from MP on unhandled code exceptions but allow retry for real errors
+    return NextResponse.json({ received: true, error: "Internal processing error" }, { status: 500 });
   }
 }

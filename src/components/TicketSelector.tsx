@@ -161,7 +161,7 @@ export default function TicketSelector({ eventId, eventTitle, tiers }: TicketSel
 
       {/* Tiers List */}
       <div className="space-y-4 relative z-10">
-        {liveTiers.map((tier) => {
+        {liveTiers.filter(t => t.status !== "HIDDEN").map((tier) => {
           const qty = quantities[tier.id] || 0;
           const available = tier.capacity - tier.sold;
           const isSoldOut = tier.status === "SOLD_OUT" || available <= 0;

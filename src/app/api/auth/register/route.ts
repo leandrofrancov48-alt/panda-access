@@ -54,7 +54,7 @@ export async function POST(req: Request) {
     }
 
     // 3. Hash password
-    const passwordHash = hashPassword(password);
+    const passwordHash = await hashPassword(password);
 
     // 4. Create user
     const parsedBirthDate = birthDate ? new Date(birthDate) : null;

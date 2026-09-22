@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const SECRET = process.env.ADMIN_SESSION_SECRET || "panda-access-secret-key-2026-auth";
+const SECRET = process.env.ADMIN_SESSION_SECRET;
+if (!SECRET) throw new Error("ADMIN_SESSION_SECRET is not set");
 
 /**
  * Verifies session token using Web Crypto API (edge-compatible).
@@ -94,7 +95,7 @@ export async function middleware(req: NextRequest) {
     }
 
     // Protected /scanner views
-    if (!scannerAuthenticated) {
+    if (!(scannerAuthenticated || adminAuthenticated)) {
       const loginUrl = new URL("/scanner/login", req.url);
       return NextResponse.redirect(loginUrl);
     }

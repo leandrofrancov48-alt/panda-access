@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { isCurrentUserAdmin } from "@/lib/auth";
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -8,6 +9,9 @@ interface RouteParams {
 // GET /api/admin/events/[id] - Obtener evento con sus tandas
 export async function GET(req: Request, { params }: RouteParams) {
   try {
+    const isAdmin = await isCurrentUserAdmin();
+    if (!isAdmin) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
     const { id } = await params;
 
     const event = await db.event.findUnique({
@@ -44,6 +48,9 @@ export async function GET(req: Request, { params }: RouteParams) {
 // PUT /api/admin/events/[id] - Actualizar evento y sus tandas de entradas
 export async function PUT(req: Request, { params }: RouteParams) {
   try {
+    const isAdmin = await isCurrentUserAdmin();
+    if (!isAdmin) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
     const { id } = await params;
     const body = await req.json();
 
@@ -83,6 +90,20 @@ export async function PUT(req: Request, { params }: RouteParams) {
         { error: "El evento no existe." },
         { status: 404 }
       );
+    }
+
+    if (Array.isArray(tiers)) {
+      for (const tierData of tiers) {
+        if (tierData.id) {
+          const existingTier = existingEvent.tiers.find(t => t.id === tierData.id);
+          if (existingTier && Number(tierData.capacity) < existingTier.sold) {
+            return NextResponse.json(
+              { error: `La capacidad de la tanda ${existingTier.name} no puede ser menor a las entradas ya vendidas (${existingTier.sold}).` },
+              { status: 400 }
+            );
+          }
+        }
+      }
     }
 
     // Actualizar evento y sincronizar tandas en una transacción
@@ -133,8 +154,8 @@ export async function PUT(req: Request, { params }: RouteParams) {
         for (const tierData of tiers) {
           if (tierData.id) {
             // Actualizar tanda existente
-            await tx.ticketTier.update({
-              where: { id: tierData.id },
+            await tx.ticketTier.updateMany({
+              where: { id: tierData.id, eventId: id },
               data: {
                 name: tierData.name,
                 description: tierData.description || null,
@@ -183,6 +204,9 @@ export async function PUT(req: Request, { params }: RouteParams) {
 // DELETE /api/admin/events/[id] - Eliminar evento y dependencias en cascada
 export async function DELETE(req: Request, { params }: RouteParams) {
   try {
+    const isAdmin = await isCurrentUserAdmin();
+    if (!isAdmin) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
     const { id } = await params;
 
     const event = await db.event.findUnique({

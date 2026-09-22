@@ -1,14 +1,16 @@
-import Link from "next/link";
 import { db } from "@/lib/db";
 import EventCard from "@/components/EventCard";
 import ExploreButton from "@/components/ExploreButton";
-import { Sparkles, Flame, Shield, QrCode, Ticket, Zap, Music } from "lucide-react";
+import { Flame, Shield, QrCode, Ticket, Zap, Music } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const events = await db.event.findMany({
-    where: { status: { not: "DRAFT" } },
+    where: { 
+      status: { not: "DRAFT" },
+      date: { gte: new Date() }
+    },
     include: {
       tiers: {
         orderBy: { price: "asc" },
@@ -179,12 +181,12 @@ export default async function HomePage() {
             </h2>
           </div>
           <span className="text-xs text-amber-300/90 font-black uppercase bg-[#181511] border border-[#332B21] px-3 py-1 rounded-full">
-            {events.length} {events.length === 1 ? "evento disponible" : "eventos disponibles"}
+            {otherEvents.length} {otherEvents.length === 1 ? "evento disponible" : "eventos disponibles"}
           </span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {events.map((evt) => (
+          {otherEvents.map((evt) => (
             <EventCard
               key={evt.id}
               id={evt.id}

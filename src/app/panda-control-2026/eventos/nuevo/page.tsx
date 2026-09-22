@@ -38,10 +38,7 @@ export default function NewEventPage() {
   const [ageRestriction, setAgeRestriction] = useState("+18 años");
 
   // Lineup
-  const [lineup, setLineup] = useState<Array<{ name: string; time: string; highlight: boolean }>>([
-    { name: "Banda Principal", time: "02:00", highlight: true },
-    { name: "DJ Residente", time: "Warm Up", highlight: false },
-  ]);
+  const [lineup, setLineup] = useState<Array<{ name: string; time: string; highlight: boolean }>>([]);
 
   // Tiers
   const [tiers, setTiers] = useState<

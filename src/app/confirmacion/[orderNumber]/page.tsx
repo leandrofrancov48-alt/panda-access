@@ -48,31 +48,45 @@ export default async function OrderConfirmationPage({ params }: Props) {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-10">
       {/* Confetti canvas effect on mount */}
-      <ConfettiTrigger />
+      {order.status === "PAID" && <ConfettiTrigger />}
 
       {/* Hero Success Box */}
       <div className="bg-[#0F121C] border border-[#1E253A] rounded-3xl p-8 sm:p-12 text-center space-y-4 shadow-2xl relative overflow-hidden">
-        <div className="w-20 h-20 rounded-full bg-emerald-500/10 border-2 border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-400">
+        <div className={`w-20 h-20 rounded-full border-2 flex items-center justify-center mx-auto ${
+          order.status === "PAID" ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" :
+          order.status === "PENDING" ? "bg-amber-500/10 border-amber-500/30 text-amber-400" :
+          "bg-red-500/10 border-red-500/30 text-red-400"
+        }`}>
           <CheckCircle2 className="w-10 h-10" />
         </div>
 
         <div className="space-y-2">
-          <span className="text-xs font-black uppercase tracking-widest text-emerald-400">
-            ¡Pago Confirmado!
+          <span className={`text-xs font-black uppercase tracking-widest ${
+            order.status === "PAID" ? "text-emerald-400" :
+            order.status === "PENDING" ? "text-amber-400" :
+            "text-red-400"
+          }`}>
+            {order.status === "PAID" ? "¡Pago Confirmado!" :
+             order.status === "PENDING" ? "Pago en proceso de acreditación" :
+             "La orden fue cancelada"}
           </span>
           <h1 className="text-3xl sm:text-4xl font-black text-white uppercase">
-            ¡Ya tenés tus entradas!
+            {order.status === "PAID" ? "¡Ya tenés tus entradas!" :
+             order.status === "PENDING" ? "Estamos procesando tu pago" :
+             "Orden Cancelada"}
           </h1>
           <p className="text-sm text-[#94A3B8] max-w-md mx-auto">
-            Orden <span className="font-mono text-white font-bold">#{order.orderNumber}</span> confirmada exitosamente para{" "}
+            Orden <span className="font-mono text-white font-bold">#{order.orderNumber}</span> para{" "}
             <span className="text-white font-bold">{order.buyerName} {order.buyerLastName}</span>.
           </p>
         </div>
 
-        <div className="pt-2 flex items-center justify-center gap-2 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 py-2 px-4 rounded-full w-fit mx-auto">
-          <Mail className="w-4 h-4" />
-          <span>Confirmación enviada a {order.buyerEmail}</span>
-        </div>
+        {order.status === "PAID" && (
+          <div className="pt-2 flex items-center justify-center gap-2 text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 py-2 px-4 rounded-full w-fit mx-auto">
+            <Mail className="w-4 h-4" />
+            <span>Confirmación enviada a {order.buyerEmail}</span>
+          </div>
+        )}
       </div>
 
       {/* Event Details Summary */}

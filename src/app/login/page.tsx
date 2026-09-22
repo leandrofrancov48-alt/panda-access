@@ -22,7 +22,10 @@ export default function LoginPage() {
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectUrl = searchParams.get("redirect") || "/perfil";
+  let redirectUrl = searchParams.get("redirect") || "/perfil";
+  if (!redirectUrl.startsWith("/") || redirectUrl.startsWith("//") || redirectUrl.includes(":")) {
+    redirectUrl = "/perfil";
+  }
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

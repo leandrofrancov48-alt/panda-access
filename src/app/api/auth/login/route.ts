@@ -29,7 +29,7 @@ export async function POST(req: Request) {
     }
 
     // Verify password
-    const valid = verifyPassword(password, user.passwordHash);
+    const valid = await verifyPassword(password, user.passwordHash);
     if (!valid) {
       return NextResponse.json(
         { error: "Correo electrónico o contraseña incorrectos." },

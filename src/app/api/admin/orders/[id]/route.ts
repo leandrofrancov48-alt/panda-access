@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { isCurrentUserAdmin } from "@/lib/auth";
 
 export async function DELETE(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const isAdmin = await isCurrentUserAdmin();
+    if (!isAdmin) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
     const { id } = await params;
 
     // Look up by ID or orderNumber
@@ -33,8 +37,10 @@ export async function DELETE(
     await db.$transaction(async (tx) => {
       // 1. Group tickets by tierId to decrement sold count
       const tierCounts: Record<string, number> = {};
-      for (const t of order.tickets) {
-        tierCounts[t.tierId] = (tierCounts[t.tierId] || 0) + 1;
+      if (order.status === "PAID") {
+        for (const t of order.tickets) {
+          tierCounts[t.tierId] = (tierCounts[t.tierId] || 0) + 1;
+        }
       }
 
       // 2. Decrement sold stock and restore AVAILABLE status if it was SOLD_OUT

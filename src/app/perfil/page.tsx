@@ -340,7 +340,10 @@ export default function ProfilePage() {
             <div className="bg-[#141828] p-4 rounded-xl border border-[#21273C]">
               <span className="text-[10px] uppercase font-bold text-gray-400 block mb-1">Fecha de Nacimiento</span>
               <span className="text-sm font-bold text-white">
-                {user.birthDate ? new Date(user.birthDate).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" }) : "No especificada"}
+                {user.birthDate ? (() => {
+                  const [y, m, d] = user.birthDate.split("T")[0].split("-");
+                  return `${d}/${m}/${y}`;
+                })() : "No especificada"}
               </span>
             </div>
 

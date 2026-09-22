@@ -30,7 +30,7 @@ export default function Navbar() {
   }, []);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 glass-header relative">
+    <header className="fixed top-0 left-0 right-0 z-50 glass-header">
       {/* Bottom glowing neon gradient line */}
       <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-amber-400/50 to-transparent pointer-events-none" />
 

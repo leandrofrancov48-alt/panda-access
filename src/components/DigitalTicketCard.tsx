@@ -85,13 +85,31 @@ export default function DigitalTicketCard({
       <div className="ticket-sweep printable-ticket relative bg-gradient-to-b from-[#181511] via-[#14120E] to-[#0E0C09] border-2 border-amber-500/35 rounded-3xl overflow-hidden shadow-[0_0_40px_rgba(245,158,11,0.18)]">
         {/* Screen Anti-fraud live bar (Fixed: no white border, sleek seamless integration) */}
         <div className="bg-[#100E0B] border-b border-[#2C261E] px-5 py-2.5 flex items-center justify-between text-[11px] font-mono print:hidden">
-          <span className="text-emerald-400 font-black flex items-center gap-2 tracking-wider">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.9)]" />
+          {status === "VALID" ? (
+            <span className="text-emerald-400 font-black flex items-center gap-2 tracking-wider">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.9)]" />
+              </span>
+              TICKET OFICIAL ACTIVO
             </span>
-            TICKET OFICIAL ACTIVO
-          </span>
+          ) : status === "USED" ? (
+            <span className="text-amber-400 font-black flex items-center gap-2 tracking-wider">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.9)]" />
+              </span>
+              TICKET YA INGRESADO
+            </span>
+          ) : (
+            <span className="text-red-400 font-black flex items-center gap-2 tracking-wider">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.9)]" />
+              </span>
+              TICKET NO VÁLIDO
+            </span>
+          )}
           <span className="text-amber-400 font-black tracking-widest text-xs drop-shadow-[0_0_8px_rgba(245,158,11,0.6)]">
             {liveTime || "00:00:00"}
           </span>

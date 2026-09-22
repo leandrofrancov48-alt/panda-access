@@ -1,10 +1,14 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { isCurrentUserAdmin } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
+    const isAdmin = await isCurrentUserAdmin();
+    if (!isAdmin) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
     const [events, orders, tickets] = await Promise.all([
       db.event.findMany({
         include: {

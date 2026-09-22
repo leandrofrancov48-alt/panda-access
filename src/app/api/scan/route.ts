@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { isCurrentUserScanner } from "@/lib/auth";
 
 export async function POST(req: Request) {
   try {
+    const isScanner = await isCurrentUserScanner();
+    if (!isScanner) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
     const { code, eventId } = await req.json();
 
     if (!code) {
@@ -22,15 +26,21 @@ export async function POST(req: Request) {
 
     const upperCode = cleanCode.toUpperCase();
 
+    const whereConditions = {
+      OR: [
+        { ticketCode: cleanCode },
+        { ticketCode: upperCode },
+        { attendeeDni: cleanCode },
+      ],
+      ...(eventId ? { order: { eventId } } : {}),
+    };
+
     // Look for ticket by ticketCode (exact or uppercase) or DNI
-    const ticket = await db.ticket.findFirst({
+    // Prioritize tickets with status: "VALID" when searching by DNI
+    let ticket = await db.ticket.findFirst({
       where: {
-        OR: [
-          { ticketCode: cleanCode },
-          { ticketCode: upperCode },
-          { attendeeDni: cleanCode },
-        ],
-        ...(eventId ? { order: { eventId } } : {}),
+        ...whereConditions,
+        status: "VALID",
       },
       include: {
         tier: true,
@@ -41,6 +51,20 @@ export async function POST(req: Request) {
         },
       },
     });
+
+    if (!ticket) {
+      ticket = await db.ticket.findFirst({
+        where: whereConditions,
+        include: {
+          tier: true,
+          order: {
+            include: {
+              event: true,
+            },
+          },
+        },
+      });
+    }
 
     if (!ticket) {
       return NextResponse.json({

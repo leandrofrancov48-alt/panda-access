@@ -88,10 +88,17 @@ export async function POST(req: Request) {
     const total = subtotal + serviceFee;
     const orderNumber = `CT-${crypto.randomBytes(4).toString("hex").toUpperCase()}`;
 
+    if (paymentMethod !== "MERCADOPAGO" && total > 0) {
+      return NextResponse.json(
+        { error: "Método de pago no válido para eventos con costo." },
+        { status: 400 }
+      );
+    }
+
     // Create tickets list
     const ticketsToCreate = attendees.map((att) => {
       const tier = event.tiers.find((t) => t.id === att.tierId)!;
-      const uniqueSuffix = crypto.randomBytes(3).toString("hex").toUpperCase();
+      const uniqueSuffix = crypto.randomBytes(8).toString("hex").toUpperCase();
       const ticketCode = `CT-TKT-${uniqueSuffix}`;
 
       return {

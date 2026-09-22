@@ -1349,6 +1349,9 @@ export default function AdminEventsManager({
             <p className="text-[11px] text-[#8F8270] leading-relaxed">
               ⚠️ Al confirmar, se eliminará esta orden de la base de datos, el monto dejará de sumar en la recaudación del panel y la entrada quedará inválida para ingresar en puerta.
             </p>
+            <p className="text-[11px] font-bold text-amber-400 bg-amber-500/10 p-2.5 rounded-lg border border-amber-500/30 mt-2">
+              ⚠️ Esta acción eliminará toda la orden con {liveTickets.filter((t) => t.order.orderNumber === saleToDelete.order.orderNumber).length} entrada(s), no solo esta fila.
+            </p>
 
             {saleActionError && (
               <div className="bg-red-500/15 border border-red-500/30 p-3 rounded-xl text-red-300 text-xs flex items-center gap-2">

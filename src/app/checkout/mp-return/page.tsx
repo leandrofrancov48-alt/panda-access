@@ -1,9 +1,9 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle2, AlertCircle, Clock, ArrowRight, RefreshCw, Sparkles, Loader2 } from "lucide-react";
+import { AlertCircle, Clock, Loader2 } from "lucide-react";
 
 export default function MercadoPagoReturnPage() {
   return (
@@ -26,10 +26,9 @@ function MercadoPagoReturnContent() {
 
   const orderNumber = searchParams.get("orderNumber");
   const mpStatus = searchParams.get("status") || searchParams.get("collection_status");
-  const paymentId = searchParams.get("payment_id") || searchParams.get("collection_id");
 
   const [orderState, setOrderState] = useState<string>("CHECKING");
-  const [attempts, setAttempts] = useState(0);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     if (!orderNumber) {
@@ -37,19 +36,28 @@ function MercadoPagoReturnContent() {
       return;
     }
 
-    let interval: NodeJS.Timeout;
+    let isMounted = true;
     let currentAttempts = 0;
 
+    const stopPolling = () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+
     async function checkStatus() {
+      if (!isMounted) return;
+
       try {
         const res = await fetch(`/api/orders/${orderNumber}/status`);
-        if (res.ok) {
+        if (res.ok && isMounted) {
           const data = await res.json();
           const status = data.order?.status;
 
           if (status === "PAID") {
+            stopPolling();
             setOrderState("PAID");
-            clearInterval(interval);
             // Clean any pending checkout session
             if (typeof window !== "undefined") {
               sessionStorage.removeItem("checkout_data");
@@ -59,8 +67,8 @@ function MercadoPagoReturnContent() {
           }
 
           if (status === "CANCELLED") {
+            stopPolling();
             setOrderState("CANCELLED");
-            clearInterval(interval);
             return;
           }
         }
@@ -69,10 +77,9 @@ function MercadoPagoReturnContent() {
       }
 
       currentAttempts++;
-      setAttempts(currentAttempts);
 
-      if (currentAttempts >= 5) {
-        clearInterval(interval);
+      if (currentAttempts >= 5 && isMounted) {
+        stopPolling();
         // Fallback to query param if webhook is still in flight
         if (mpStatus === "success" || mpStatus === "approved") {
           setOrderState("PAID");
@@ -87,9 +94,12 @@ function MercadoPagoReturnContent() {
 
     // Check immediately, then poll
     checkStatus();
-    interval = setInterval(checkStatus, 2000);
+    intervalRef.current = setInterval(checkStatus, 2000);
 
-    return () => clearInterval(interval);
+    return () => {
+      isMounted = false;
+      stopPolling();
+    };
   }, [orderNumber, mpStatus, router]);
 
   if (orderState === "CHECKING") {
