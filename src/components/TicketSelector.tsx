@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Plus, Minus, Ticket, ShieldCheck, ArrowRight, Users } from "lucide-react";
 
@@ -24,9 +24,60 @@ interface TicketSelectorProps {
 
 export default function TicketSelector({ eventId, eventTitle, tiers }: TicketSelectorProps) {
   const router = useRouter();
+  const [liveTiers, setLiveTiers] = useState<TierItem[]>(tiers);
   const [quantities, setQuantities] = useState<Record<string, number>>(
     tiers.reduce((acc, tier) => ({ ...acc, [tier.id]: 0 }), {})
   );
+
+  // Auto-refresh silencioso de stock y disponibilidad cada 15 segundos y al volver a la pestaña
+  useEffect(() => {
+    let isMounted = true;
+
+    const refreshStock = async () => {
+      try {
+        const res = await fetch(`/api/events/${eventId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!isMounted || !data?.tiers) return;
+
+        setLiveTiers(data.tiers);
+
+        // Si se redujo el stock de alguna tanda, ajustamos la selección del usuario
+        setQuantities((prev) => {
+          let hasChanges = false;
+          const next = { ...prev };
+          data.tiers.forEach((t: TierItem) => {
+            const currentQty = next[t.id] || 0;
+            const available = Math.max(0, t.capacity - t.sold);
+            const limit = Math.min(t.maxPerOrder, available);
+            if (currentQty > limit) {
+              next[t.id] = limit;
+              hasChanges = true;
+            }
+          });
+          return hasChanges ? next : prev;
+        });
+      } catch {
+        // Fallo silencioso en caso de microcorte de red
+      }
+    };
+
+    const interval = setInterval(refreshStock, 15000);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        refreshStock();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [eventId]);
 
   const handleIncrement = (tierId: string, max: number, available: number) => {
     setQuantities((prev) => {
@@ -49,15 +100,15 @@ export default function TicketSelector({ eventId, eventTitle, tiers }: TicketSel
     });
   };
 
-  // Calculate totals
+  // Calculate totals usando liveTiers
   const totalTickets = Object.values(quantities).reduce((a, b) => a + b, 0);
 
-  const subtotal = tiers.reduce((acc, tier) => {
+  const subtotal = liveTiers.reduce((acc, tier) => {
     const qty = quantities[tier.id] || 0;
     return acc + qty * tier.price;
   }, 0);
 
-  const totalFee = tiers.reduce((acc, tier) => {
+  const totalFee = liveTiers.reduce((acc, tier) => {
     const qty = quantities[tier.id] || 0;
     return acc + qty * tier.serviceFee;
   }, 0);
@@ -110,7 +161,7 @@ export default function TicketSelector({ eventId, eventTitle, tiers }: TicketSel
 
       {/* Tiers List */}
       <div className="space-y-4 relative z-10">
-        {tiers.map((tier) => {
+        {liveTiers.map((tier) => {
           const qty = quantities[tier.id] || 0;
           const available = tier.capacity - tier.sold;
           const isSoldOut = tier.status === "SOLD_OUT" || available <= 0;

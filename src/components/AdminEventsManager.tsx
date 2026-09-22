@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import * as XLSX from "xlsx";
@@ -27,6 +27,9 @@ import {
   Trash2,
   AlertTriangle,
   Loader2,
+  RefreshCw,
+  Play,
+  Pause,
 } from "lucide-react";
 
 export interface EventWithDetails {
@@ -83,10 +86,92 @@ export interface TicketWithOrder {
 interface Props {
   events: EventWithDetails[];
   tickets: TicketWithOrder[];
+  initialRevenue?: number;
+  initialOrdersCount?: number;
 }
 
-export default function AdminEventsManager({ events, tickets }: Props) {
+export default function AdminEventsManager({
+  events,
+  tickets,
+  initialRevenue = 0,
+  initialOrdersCount = 0,
+}: Props) {
   const router = useRouter();
+
+  // Live state
+  const [liveEvents, setLiveEvents] = useState<EventWithDetails[]>(events);
+  const [liveTickets, setLiveTickets] = useState<TicketWithOrder[]>(tickets);
+  const [liveRevenue, setLiveRevenue] = useState<number>(initialRevenue);
+  const [liveOrdersCount, setLiveOrdersCount] = useState<number>(initialOrdersCount);
+
+  // Auto-refresh state
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [secondsSinceSync, setSecondsSinceSync] = useState(0);
+  const [lastNewSaleAlert, setLastNewSaleAlert] = useState<string | null>(null);
+  const ticketsCountRef = useRef(tickets.length);
+
+  useEffect(() => {
+    ticketsCountRef.current = liveTickets.length;
+  }, [liveTickets.length]);
+
+  const fetchLiveData = async (isManual = false) => {
+    if (isManual) setIsRefreshing(true);
+    try {
+      const res = await fetch("/api/admin/live-data");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          if (data.tickets && data.tickets.length > ticketsCountRef.current) {
+            const diff = data.tickets.length - ticketsCountRef.current;
+            setLastNewSaleAlert(`🎉 ¡${diff} nueva${diff > 1 ? "s" : ""} entrada${diff > 1 ? "s" : ""} vendida${diff > 1 ? "s" : ""}!`);
+            setTimeout(() => setLastNewSaleAlert(null), 7000);
+          }
+          if (data.events) setLiveEvents(data.events);
+          if (data.tickets) setLiveTickets(data.tickets);
+          if (data.stats) {
+            setLiveRevenue(data.stats.totalRevenue);
+            setLiveOrdersCount(data.stats.paidOrdersCount);
+          }
+          setSecondsSinceSync(0);
+        }
+      }
+    } catch (err) {
+      console.error("Error refreshing live data:", err);
+    } finally {
+      if (isManual) {
+        setTimeout(() => setIsRefreshing(false), 400);
+      }
+    }
+  };
+
+  // Seconds counter
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setSecondsSinceSync((prev) => prev + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Polling every 10s & on focus
+  useEffect(() => {
+    if (!autoRefresh) return;
+    const interval = setInterval(() => {
+      fetchLiveData(false);
+    }, 10000);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        fetchLiveData(false);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [autoRefresh]);
 
   // Selected event ID: "all" or event.id
   const [selectedEventId, setSelectedEventId] = useState<string>("all");
@@ -108,12 +193,12 @@ export default function AdminEventsManager({ events, tickets }: Props) {
   // Selected event details
   const currentEvent = useMemo(() => {
     if (selectedEventId === "all") return null;
-    return events.find((e) => e.id === selectedEventId) || null;
-  }, [selectedEventId, events]);
+    return liveEvents.find((e) => e.id === selectedEventId) || null;
+  }, [selectedEventId, liveEvents]);
 
   // Filtered tickets
   const filteredTickets = useMemo(() => {
-    return tickets.filter((tkt) => {
+    return liveTickets.filter((tkt) => {
       // 1. Event filter
       if (selectedEventId !== "all" && tkt.order.eventId !== selectedEventId) {
         return false;
@@ -143,14 +228,14 @@ export default function AdminEventsManager({ events, tickets }: Props) {
 
       return true;
     });
-  }, [tickets, selectedEventId, statusFilter, searchQuery]);
+  }, [liveTickets, selectedEventId, statusFilter, searchQuery]);
 
   // Event specific or global stats
   const stats = useMemo(() => {
     const relevantTickets =
       selectedEventId === "all"
-        ? tickets
-        : tickets.filter((t) => t.order.eventId === selectedEventId);
+        ? liveTickets
+        : liveTickets.filter((t) => t.order.eventId === selectedEventId);
 
     const totalSold = relevantTickets.length;
     const checkedIn = relevantTickets.filter((t) => t.status === "USED").length;
@@ -160,7 +245,7 @@ export default function AdminEventsManager({ events, tickets }: Props) {
     if (currentEvent) {
       totalCapacity = currentEvent.tiers.reduce((acc, t) => acc + t.capacity, 0);
     } else {
-      totalCapacity = events.reduce(
+      totalCapacity = liveEvents.reduce(
         (acc, e) => acc + e.tiers.reduce((sub, t) => sub + t.capacity, 0),
         0
       );
@@ -177,7 +262,7 @@ export default function AdminEventsManager({ events, tickets }: Props) {
       attendanceRate,
       remainingCapacity,
     };
-  }, [tickets, events, selectedEventId, currentEvent]);
+  }, [liveTickets, liveEvents, selectedEventId, currentEvent]);
 
   // Estados para modal y copiado de Google Sheets
   const [sheetsNotification, setSheetsNotification] = useState<string | null>(null);
@@ -388,6 +473,150 @@ export default function AdminEventsManager({ events, tickets }: Props) {
 
   return (
     <div className="space-y-8">
+      {/* Notificación de nueva venta */}
+      {lastNewSaleAlert && (
+        <div className="fixed top-5 right-5 z-50 animate-bounce bg-emerald-500 text-black font-black px-5 py-3 rounded-2xl shadow-[0_0_30px_rgba(16,185,129,0.5)] border border-emerald-300 flex items-center gap-3">
+          <span className="text-xl">🎟️</span>
+          <span>{lastNewSaleAlert}</span>
+        </div>
+      )}
+
+      {/* 0. Barra de sincronización en vivo y controles */}
+      <div className="bg-[#120F0B] border border-[#2E2820] rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 shadow-md">
+        <div className="flex items-center gap-3">
+          <div className="relative flex items-center justify-center">
+            <span className={`w-3 h-3 rounded-full ${autoRefresh ? "bg-emerald-500 animate-ping absolute" : "bg-zinc-600"}`} />
+            <span className={`w-3 h-3 rounded-full ${autoRefresh ? "bg-emerald-400" : "bg-zinc-600"} relative`} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-black uppercase tracking-wider text-[#FAF6EE]">
+                {autoRefresh ? "Actualización en Vivo Activa" : "Actualización en Pausa"}
+              </span>
+              <span className="text-[10px] text-amber-400/80 bg-amber-400/10 px-2 py-0.5 rounded-full font-bold">
+                cada 10s
+              </span>
+            </div>
+            <p className="text-[11px] text-[#8F8270]">
+              {isRefreshing
+                ? "Sincronizando datos con la base de datos..."
+                : secondsSinceSync === 0
+                ? "Sincronizado recién"
+                : `Última sincronización hace ${secondsSinceSync}s`}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => fetchLiveData(true)}
+            disabled={isRefreshing}
+            className="px-3.5 py-2 rounded-xl bg-[#1C1813] hover:bg-[#25201A] border border-[#3A3228] text-amber-300 text-xs font-bold flex items-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+            title="Forzar actualización ahora"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin text-amber-400" : ""}`} />
+            <span>{isRefreshing ? "Actualizando..." : "Actualizar Ahora"}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setAutoRefresh(!autoRefresh)}
+            className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer border ${
+              autoRefresh
+                ? "bg-amber-400/10 border-amber-400/30 text-amber-300 hover:bg-amber-400/20"
+                : "bg-zinc-800/60 border-zinc-700 text-zinc-400 hover:text-zinc-200"
+            }`}
+            title={autoRefresh ? "Pausar actualización automática" : "Reanudar actualización automática"}
+          >
+            {autoRefresh ? (
+              <>
+                <Pause className="w-3.5 h-3.5" />
+                <span>Pausar</span>
+              </>
+            ) : (
+              <>
+                <Play className="w-3.5 h-3.5" />
+                <span>Reanudar</span>
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* KPI Cards Globales Reactivas */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        {/* Total Revenue */}
+        <div className="bg-[#15130F] border border-[#2E2820] hover:border-amber-400/50 rounded-2xl p-5 space-y-2 shadow-lg transition-all">
+          <div className="flex items-center justify-between text-amber-400">
+            <span className="text-xs font-bold uppercase tracking-wider text-[#8F8270]">
+              Recaudación Global
+            </span>
+            <DollarSign className="w-5 h-5 drop-shadow-[0_0_8px_rgba(245,158,11,0.6)]" />
+          </div>
+          <div className="text-2xl font-black text-[#FAF6EE]">
+            ${liveRevenue.toLocaleString("es-AR")}
+          </div>
+          <div className="text-[11px] text-emerald-400 flex items-center gap-1 font-semibold">
+            <TrendingUp className="w-3.5 h-3.5" />
+            {liveOrdersCount} órdenes confirmadas
+          </div>
+        </div>
+
+        {/* Tickets Sold */}
+        <div className="bg-[#15130F] border border-[#2E2820] hover:border-cyan-400/50 rounded-2xl p-5 space-y-2 shadow-lg transition-all">
+          <div className="flex items-center justify-between text-cyan-400">
+            <span className="text-xs font-bold uppercase tracking-wider text-[#8F8270]">
+              Total Entradas Emitidas
+            </span>
+            <Ticket className="w-5 h-5 drop-shadow-[0_0_8px_rgba(6,182,212,0.6)]" />
+          </div>
+          <div className="text-2xl font-black text-[#FAF6EE]">
+            {liveTickets.length}
+          </div>
+          <div className="text-[11px] text-[#8F8270] font-medium">
+            En {liveEvents.length} eventos registrados
+          </div>
+        </div>
+
+        {/* Checked In */}
+        <div className="bg-[#15130F] border border-[#2E2820] hover:border-emerald-400/50 rounded-2xl p-5 space-y-2 shadow-lg transition-all">
+          <div className="flex items-center justify-between text-emerald-400">
+            <span className="text-xs font-bold uppercase tracking-wider text-[#8F8270]">
+              Total Ingresos en Puerta
+            </span>
+            <CheckCircle2 className="w-5 h-5 drop-shadow-[0_0_8px_rgba(52,211,153,0.6)]" />
+          </div>
+          <div className="text-2xl font-black text-[#FAF6EE]">
+            {liveTickets.filter((t) => t.status === "USED").length}{" "}
+            <span className="text-xs text-[#8F8270] font-normal">
+              / {liveTickets.length}
+            </span>
+          </div>
+          <div className="text-[11px] text-emerald-400 font-semibold">
+            {liveTickets.length > 0
+              ? Math.round((liveTickets.filter((t) => t.status === "USED").length / liveTickets.length) * 100)
+              : 0}% de asistencia total
+          </div>
+        </div>
+
+        {/* Active Events */}
+        <div className="bg-[#15130F] border border-[#2E2820] hover:border-pink-400/50 rounded-2xl p-5 space-y-2 shadow-lg transition-all">
+          <div className="flex items-center justify-between text-pink-400">
+            <span className="text-xs font-bold uppercase tracking-wider text-[#8F8270]">
+              Eventos en Cartelera
+            </span>
+            <Calendar className="w-5 h-5 drop-shadow-[0_0_8px_rgba(244,63,94,0.6)]" />
+          </div>
+          <div className="text-2xl font-black text-[#FAF6EE]">
+            {liveEvents.length}
+          </div>
+          <div className="text-[11px] text-[#8F8270] font-medium">
+            Activos en plataforma
+          </div>
+        </div>
+      </div>
+
       {/* 1. Selector de Eventos */}
       <div className="bg-[#0F121C] border border-[#1E253A] rounded-2xl p-5 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#1C2236]">
@@ -398,7 +627,7 @@ export default function AdminEventsManager({ events, tickets }: Props) {
             </h2>
           </div>
           <span className="text-xs text-[#94A3B8]">
-            {events.length} eventos en catálogo
+            {liveEvents.length} eventos en catálogo
           </span>
         </div>
 
@@ -414,10 +643,10 @@ export default function AdminEventsManager({ events, tickets }: Props) {
             }`}
           >
             <Sparkles className="w-3.5 h-3.5" />
-            Todos los Eventos ({tickets.length} ventas)
+            Todos los Eventos ({liveTickets.length} ventas)
           </button>
 
-          {events.map((evt) => {
+          {liveEvents.map((evt) => {
             const isSelected = selectedEventId === evt.id;
             const evtSold = evt.tiers.reduce((acc, t) => acc + t.sold, 0);
 
