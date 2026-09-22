@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sendTicketConfirmationEmail } from "@/lib/email";
 import { createMercadoPagoPreference, isMercadoPagoConfigured } from "@/lib/mercadopago";
+import { getCurrentUser, awardLoyaltyPoints } from "@/lib/user-auth";
 import crypto from "crypto";
 
 interface AttendeeInfo {
@@ -111,6 +112,39 @@ export async function POST(req: Request) {
       tierCountMap.set(att.tierId, (tierCountMap.get(att.tierId) || 0) + 1);
     }
 
+    // Validate maxPerOrder for each tier
+    for (const [tierId, count] of tierCountMap.entries()) {
+      const tier = event.tiers.find((t) => t.id === tierId);
+      if (tier && tier.maxPerOrder && count > tier.maxPerOrder) {
+        return NextResponse.json(
+          {
+            error: `El límite máximo para la tanda "${tier.name}" es de ${tier.maxPerOrder} entradas por compra (solicitaste ${count}).`,
+            code: "MAX_PER_ORDER_EXCEEDED",
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Resolve user session if available
+    let checkoutUserId: string | null = null;
+    try {
+      const loggedUser = await getCurrentUser();
+      if (loggedUser) {
+        checkoutUserId = loggedUser.id;
+      } else if (buyerEmail) {
+        const foundUser = await db.user.findUnique({
+          where: { email: buyerEmail.toLowerCase().trim() },
+          select: { id: true },
+        });
+        if (foundUser) {
+          checkoutUserId = foundUser.id;
+        }
+      }
+    } catch {
+      // Non-blocking fallback
+    }
+
     // Atomic Transaction: 
     // 1. Lock and decrement available stock with strict capacity condition.
     // 2. If any tier exceeds capacity, PostgreSQL rolls back immediately.
@@ -145,6 +179,7 @@ export async function POST(req: Request) {
           buyerEmail,
           buyerPhone,
           buyerDni,
+          userId: checkoutUserId,
           subtotal,
           serviceFee,
           total,
@@ -242,6 +277,21 @@ export async function POST(req: Request) {
       });
     } catch (err) {
       console.error("Email send error during checkout:", err);
+    }
+
+    // Award loyalty points if associated with a user
+    if (checkoutUserId) {
+      try {
+        const earnedPoints = total === 0 ? 25 : Math.max(10, Math.floor(total / 1000) * 10);
+        await awardLoyaltyPoints(
+          checkoutUserId,
+          earnedPoints,
+          `Compra de entradas para ${event.title} (Orden #${newOrder.orderNumber})`,
+          newOrder.id
+        );
+      } catch (loyaltyErr) {
+        console.error("Error awarding checkout loyalty points:", loyaltyErr);
+      }
     }
 
     return NextResponse.json({

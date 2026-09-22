@@ -44,6 +44,7 @@ export interface EventDataForEdit {
     capacity: number;
     sold: number;
     serviceFee: number;
+    maxPerOrder?: number;
     status: string;
   }>;
 }
@@ -103,6 +104,7 @@ export default function EditEventForm({ event }: { event: EventDataForEdit }) {
       price: number;
       capacity: number;
       sold: number;
+      maxPerOrder: number;
       status: string;
     }>
   >(
@@ -113,6 +115,7 @@ export default function EditEventForm({ event }: { event: EventDataForEdit }) {
       price: t.price,
       capacity: t.capacity,
       sold: t.sold,
+      maxPerOrder: t.maxPerOrder ?? 6,
       status: t.status,
     }))
   );
@@ -134,6 +137,7 @@ export default function EditEventForm({ event }: { event: EventDataForEdit }) {
         price: 15000,
         capacity: 100,
         sold: 0,
+        maxPerOrder: 6,
         status: "AVAILABLE",
       },
     ]);
@@ -190,6 +194,7 @@ export default function EditEventForm({ event }: { event: EventDataForEdit }) {
             description: t.description,
             price: Number(t.price),
             capacity: Number(t.capacity),
+            maxPerOrder: Number(t.maxPerOrder || 6),
             status: t.status,
           })),
         }),
@@ -687,7 +692,7 @@ export default function EditEventForm({ event }: { event: EventDataForEdit }) {
                       )}
                     </div>
 
-                    <div className="sm:col-span-3">
+                    <div className="sm:col-span-2">
                       <label className="text-[11px] font-bold text-gray-300 block mb-1">
                         Descripción (Opcional)
                       </label>
@@ -701,6 +706,25 @@ export default function EditEventForm({ event }: { event: EventDataForEdit }) {
                         }}
                         placeholder="Ej: Acceso general a precio promocional anticipado"
                         className="w-full px-3 py-2 bg-[#1B2136] border border-[#2A3455] rounded-lg text-white text-xs outline-none focus:border-[#FFE600]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-gray-300 block mb-1">
+                        Máx. por usuario
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="50"
+                        required
+                        value={tier.maxPerOrder || 6}
+                        onChange={(e) => {
+                          const copy = [...tiers];
+                          copy[index].maxPerOrder = Number(e.target.value);
+                          setTiers(copy);
+                        }}
+                        className="w-full px-3 py-2 bg-[#1B2136] border border-[#2A3455] rounded-lg text-white text-xs outline-none focus:border-[#FFE600] font-mono"
                       />
                     </div>
 

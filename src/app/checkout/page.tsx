@@ -69,6 +69,16 @@ function CheckoutContent() {
   const [buyerEmail, setBuyerEmail] = useState("");
   const [buyerPhone, setBuyerPhone] = useState("");
   const [buyerDni, setBuyerDni] = useState("");
+  const [currentUser, setCurrentUser] = useState<{
+    id: string;
+    name: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    dni: string;
+    points: number;
+    tier: string;
+  } | null>(null);
 
   // Attendees Info
   const [attendees, setAttendees] = useState<
@@ -148,6 +158,24 @@ function CheckoutContent() {
 
         setSelectedItems(items);
         setAttendees(initialAttendees);
+
+        // Fetch authenticated user if available to autocompile
+        try {
+          const authRes = await fetch("/api/auth/me");
+          if (authRes.ok) {
+            const authData = await authRes.json();
+            if (authData.user) {
+              setCurrentUser(authData.user);
+              setBuyerName((prev) => prev || authData.user.name || "");
+              setBuyerLastName((prev) => prev || authData.user.lastName || "");
+              setBuyerEmail((prev) => prev || authData.user.email || "");
+              setBuyerPhone((prev) => prev || authData.user.phone || "");
+              setBuyerDni((prev) => prev || authData.user.dni || "");
+            }
+          }
+        } catch {
+          // guest mode fallback
+        }
       } catch (err) {
         console.error(err);
       } finally {
@@ -333,6 +361,52 @@ function CheckoutContent() {
               Cambiar Sector
             </Link>
           )}
+        </div>
+      )}
+
+      {/* User Session / Fidelity Banner */}
+      {currentUser ? (
+        <div className="bg-gradient-to-r from-amber-500/10 via-[#181510] to-[#0F121C] border border-amber-500/30 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 font-black text-lg shrink-0">
+              🐼
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-extrabold text-white">¡Hola, {currentUser.name}!</span>
+                <span className="text-[10px] uppercase font-black px-2 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                  Nivel {currentUser.tier} • {currentUser.points} pts
+                </span>
+              </div>
+              <p className="text-xs text-[#A89C8B] mt-0.5">
+                Tus datos fueron cargados automáticamente. Con esta compra acumularás{" "}
+                <strong className="text-amber-400 font-bold">
+                  +{total === 0 ? 25 : Math.max(10, Math.floor(total / 1000) * 10)} Panda Points
+                </strong>.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/perfil"
+            className="text-xs font-bold text-amber-400 hover:text-amber-300 underline shrink-0"
+          >
+            Ver Mi Cuenta
+          </Link>
+        </div>
+      ) : (
+        <div className="bg-[#101420] border border-[#232B45] rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2.5 text-gray-300">
+            <Sparkles className="w-4 h-4 text-[#FFE600] shrink-0" />
+            <span>
+              ¿Ya tenés cuenta en Panda Access? <strong className="text-white">Iniciá sesión</strong> para autocompletar tus datos y sumar Panda Points.
+            </span>
+          </div>
+          <Link
+            href={`/login?redirect=/checkout?eventId=${event.id}`}
+            className="shrink-0 px-3.5 py-1.5 rounded-lg bg-[#FFE600]/15 hover:bg-[#FFE600]/25 text-[#FFE600] font-bold border border-[#FFE600]/30 transition-colors"
+          >
+            Iniciar Sesión
+          </Link>
         </div>
       )}
 

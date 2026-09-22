@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getPaymentInfo } from "@/lib/mercadopago";
 import { sendTicketConfirmationEmail } from "@/lib/email";
+import { awardLoyaltyPoints } from "@/lib/user-auth";
 
 // Health check / verification by Mercado Pago
 export async function GET() {
@@ -127,6 +128,37 @@ export async function POST(req: Request) {
           console.log(`[Mercado Pago Webhook] Confirmation email sent to ${order.buyerEmail}`);
         } catch (emailErr) {
           console.error("[Mercado Pago Webhook] Email dispatch error:", emailErr);
+        }
+
+        // Award loyalty points to user
+        try {
+          let targetUserId = order.userId;
+          if (!targetUserId && order.buyerEmail) {
+            const existingUser = await db.user.findUnique({
+              where: { email: order.buyerEmail.toLowerCase().trim() },
+              select: { id: true },
+            });
+            if (existingUser) {
+              targetUserId = existingUser.id;
+              await db.order.update({
+                where: { id: order.id },
+                data: { userId: existingUser.id },
+              });
+            }
+          }
+
+          if (targetUserId) {
+            const earnedPoints = Math.max(10, Math.floor(order.total / 1000) * 10);
+            await awardLoyaltyPoints(
+              targetUserId,
+              earnedPoints,
+              `Compra de entradas para ${order.event.title} (Orden #${order.orderNumber})`,
+              order.id
+            );
+            console.log(`[Mercado Pago Webhook] Awarded ${earnedPoints} points to user ${targetUserId}`);
+          }
+        } catch (loyaltyErr) {
+          console.error("[Mercado Pago Webhook] Error awarding points:", loyaltyErr);
         }
       }
     }

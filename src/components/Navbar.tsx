@@ -1,11 +1,33 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { Ticket, QrCode, ShieldCheck, Menu, X, Flame } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Ticket, QrCode, ShieldCheck, Menu, X, Flame, User, Sparkles } from "lucide-react";
 
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [user, setUser] = useState<{ name: string; points: number; tier: string } | null>(null);
+
+  useEffect(() => {
+    async function checkAuth() {
+      try {
+        const res = await fetch("/api/auth/me");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.authenticated && data.user) {
+            setUser({
+              name: data.user.name,
+              points: data.user.points,
+              tier: data.user.tier,
+            });
+          }
+        }
+      } catch {
+        // guest mode
+      }
+    }
+    checkAuth();
+  }, []);
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 glass-header relative">
@@ -54,8 +76,31 @@ export default function Navbar() {
           </a>
         </nav>
 
-        {/* Action Button */}
+        {/* Action Buttons */}
         <div className="hidden md:flex items-center gap-3">
+          {user ? (
+            <Link
+              href="/perfil"
+              className="px-4 py-2 rounded-xl bg-[#191510] hover:bg-[#241E17] border border-amber-400/40 text-xs font-black text-white hover:text-amber-300 flex items-center gap-2 transition-all shadow-md shadow-amber-500/10 cursor-pointer"
+            >
+              <span className="w-6 h-6 rounded-lg bg-amber-400/20 text-amber-400 flex items-center justify-center text-xs">
+                🐼
+              </span>
+              <span>{user.name}</span>
+              <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300">
+                {user.points} pts
+              </span>
+            </Link>
+          ) : (
+            <Link
+              href="/login"
+              className="px-4 py-2 rounded-xl bg-[#14120F] hover:bg-[#1E1B15] border border-[#2D271E] text-xs font-black text-[#CEC1AD] hover:text-amber-300 flex items-center gap-1.5 transition-all cursor-pointer"
+            >
+              <User className="w-3.5 h-3.5" />
+              Ingresar
+            </Link>
+          )}
+
           <a
             href="/#eventos"
             onClick={(e) => {
@@ -113,7 +158,48 @@ export default function Navbar() {
             <Flame className="w-4 h-4 text-amber-400 fill-amber-400/30" />
             Shows Destacados
           </a>
-          <div className="pt-2">
+          {/* Mobile User Profile / Login */}
+          <div className="pt-2 border-t border-[#231E17]">
+            {user ? (
+              <Link
+                href="/perfil"
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full flex items-center justify-between p-3 rounded-xl bg-[#191510] border border-amber-400/40 text-white"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="w-7 h-7 rounded-lg bg-amber-400/20 text-amber-400 flex items-center justify-center text-sm">
+                    🐼
+                  </span>
+                  <div className="text-left">
+                    <span className="text-xs font-black block">{user.name}</span>
+                    <span className="text-[10px] text-amber-300 font-bold block">Mi Cuenta • {user.tier}</span>
+                  </div>
+                </div>
+                <span className="text-xs font-black text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-lg border border-amber-400/30">
+                  {user.points} pts
+                </span>
+              </Link>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <Link
+                  href="/login"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="py-2.5 rounded-xl bg-[#181511] border border-[#2D271E] text-center text-xs font-bold text-[#CEC1AD] hover:text-white"
+                >
+                  Iniciar Sesión
+                </Link>
+                <Link
+                  href="/registro"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="py-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-center text-xs font-bold text-amber-300 hover:text-white"
+                >
+                  Registrarme (+50 pts)
+                </Link>
+              </div>
+            )}
+          </div>
+
+          <div className="pt-1">
             <a
               href="/#eventos"
               onClick={(e) => {

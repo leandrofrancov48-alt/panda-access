@@ -66,6 +66,8 @@ model Order {
   buyerEmail    String
   buyerPhone    String
   buyerDni      String
+  userId        String?
+  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   subtotal      Float
   serviceFee    Float
   total         Float
@@ -76,12 +78,49 @@ model Order {
   updatedAt     DateTime @updatedAt
 
   tickets       Ticket[]
+  loyaltyLogs   LoyaltyLog[]
 
   @@index([eventId])
+  @@index([userId])
   @@index([buyerEmail])
   @@index([buyerDni])
   @@index([status])
   @@index([createdAt])
+}
+
+model User {
+  id           String       @id @default(cuid())
+  email        String       @unique
+  passwordHash String
+  name         String
+  lastName     String
+  dni          String       @unique
+  phone        String
+  birthDate    DateTime?
+  points       Int          @default(0) // Puntos Panda acumulados
+  tier         String       @default("BRONCE") // BRONCE, PLATA, ORO, VIP
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  orders       Order[]
+  loyaltyLogs  LoyaltyLog[]
+
+  @@index([email])
+  @@index([dni])
+}
+
+model LoyaltyLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderId   String?
+  order     Order?   @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  points    Int      // +50 bienvenida, +100 por compra, etc.
+  reason    String   // Motivo de la acreditación
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([orderId])
 }
 
 model Ticket {

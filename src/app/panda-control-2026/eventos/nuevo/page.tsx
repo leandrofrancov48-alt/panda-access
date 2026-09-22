@@ -45,19 +45,21 @@ export default function NewEventPage() {
 
   // Tiers
   const [tiers, setTiers] = useState<
-    Array<{ name: string; description: string; price: number; capacity: number }>
+    Array<{ name: string; description: string; price: number; capacity: number; maxPerOrder: number }>
   >([
     {
       name: "Entrada General - Fase 1",
       description: "Acceso general a precio promocional anticipado.",
       price: 10000,
       capacity: 300,
+      maxPerOrder: 6,
     },
     {
       name: "Campo VIP",
       description: "Sector preferencial cerca del escenario con barra exclusiva.",
       price: 20000,
       capacity: 100,
+      maxPerOrder: 6,
     },
   ]);
 
@@ -72,7 +74,7 @@ export default function NewEventPage() {
   const addTier = () => {
     setTiers([
       ...tiers,
-      { name: "Nueva Tanda", description: "", price: 15000, capacity: 150 },
+      { name: "Nueva Tanda", description: "", price: 15000, capacity: 150, maxPerOrder: 6 },
     ]);
   };
 
@@ -334,6 +336,7 @@ export default function NewEventPage() {
                       description: "Acceso libre y gratuito previa inscripción con DNI",
                       price: 0,
                       capacity: 500,
+                      maxPerOrder: 6,
                     },
                   ]);
                 }}
@@ -379,7 +382,7 @@ export default function NewEventPage() {
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                   <div>
                     <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">
                       Nombre de la entrada
@@ -442,6 +445,25 @@ export default function NewEventPage() {
                       onChange={(e) => {
                         const copy = [...tiers];
                         copy[idx].capacity = Number(e.target.value);
+                        setTiers(copy);
+                      }}
+                      className="w-full px-3 py-2 bg-[#0F121C] border border-[#232B45] rounded-lg text-white text-xs font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1">
+                      Máx. por usuario
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="50"
+                      required
+                      value={tier.maxPerOrder || 6}
+                      onChange={(e) => {
+                        const copy = [...tiers];
+                        copy[idx].maxPerOrder = Number(e.target.value);
                         setTiers(copy);
                       }}
                       className="w-full px-3 py-2 bg-[#0F121C] border border-[#232B45] rounded-lg text-white text-xs font-mono"

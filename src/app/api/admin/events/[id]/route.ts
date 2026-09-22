@@ -141,6 +141,7 @@ export async function PUT(req: Request, { params }: RouteParams) {
                 price: Number(tierData.price),
                 serviceFee: Number(tierData.serviceFee ?? tierData.price * 0.1),
                 capacity: Number(tierData.capacity),
+                maxPerOrder: Number(tierData.maxPerOrder || 6),
                 status: tierData.status || "AVAILABLE",
               },
             });
@@ -154,6 +155,7 @@ export async function PUT(req: Request, { params }: RouteParams) {
                 price: Number(tierData.price),
                 serviceFee: Number(tierData.serviceFee ?? tierData.price * 0.1),
                 capacity: Number(tierData.capacity || 100),
+                maxPerOrder: Number(tierData.maxPerOrder || 6),
                 sold: 0,
                 status: tierData.status || "AVAILABLE",
               },

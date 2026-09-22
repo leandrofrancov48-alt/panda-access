@@ -53,12 +53,13 @@ export async function POST(req: Request) {
         ageRestriction: ageRestriction || "+18 años",
         lineup: lineup ? JSON.stringify(lineup) : null,
         tiers: {
-          create: (tiers || []).map((t: { name: string; description?: string; price: number; capacity: number; serviceFee?: number }) => ({
+          create: (tiers || []).map((t: { name: string; description?: string; price: number; capacity: number; serviceFee?: number; maxPerOrder?: number }) => ({
             name: t.name,
             description: t.description || null,
             price: Number(t.price),
             serviceFee: Number(t.serviceFee ?? (t.price * 0.1)),
             capacity: Number(t.capacity || 200),
+            maxPerOrder: Number(t.maxPerOrder || 6),
             sold: 0,
             status: "AVAILABLE",
           })),
