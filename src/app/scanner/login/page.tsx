@@ -2,24 +2,32 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Shield, KeyRound, ArrowRight, Loader2, QrCode } from "lucide-react";
+import { Shield, KeyRound, ArrowRight, Loader2, QrCode, Eye, EyeOff } from "lucide-react";
 
 export default function ScannerLoginPage() {
   const router = useRouter();
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    const cleanPassword = password.trim();
+
+    if (!cleanPassword) {
+      setError("Por favor ingresá la clave de acceso.");
+      return;
+    }
+
     setLoading(true);
 
     try {
       const res = await fetch("/api/scanner/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ password: cleanPassword }),
       });
 
       const data = await res.json();
@@ -79,15 +87,26 @@ export default function ScannerLoginPage() {
             <div className="relative">
               <KeyRound className="w-5 h-5 text-[#8F8270] absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 required
                 autoFocus
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Ingresá la clave de acceso..."
-                className="w-full pl-11 pr-4 py-3.5 bg-[#12100D] border border-[#2E2820] rounded-xl text-white text-sm outline-none focus:border-amber-400 focus:shadow-[0_0_15px_rgba(245,158,11,0.2)] transition-all placeholder:text-[#5A5040]"
+                placeholder="puerta2026"
+                className="w-full pl-11 pr-11 py-3.5 bg-[#12100D] border border-[#2E2820] rounded-xl text-white text-sm outline-none focus:border-amber-400 focus:shadow-[0_0_15px_rgba(245,158,11,0.2)] transition-all placeholder:text-[#5A5040]"
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#8F8270] hover:text-amber-400 transition-colors cursor-pointer"
+                title={showPassword ? "Ocultar contraseña" : "Ver contraseña"}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
+            <p className="text-[11px] text-[#8F8270] mt-1">
+              💡 Clave predeterminada de puerta: <span className="font-mono text-amber-300 font-bold">puerta2026</span>
+            </p>
           </div>
 
           <button
