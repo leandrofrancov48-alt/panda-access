@@ -82,7 +82,7 @@ function LoginContent() {
               Ingresá a tu Cuenta
             </h1>
             <p className="text-xs text-[#94A3B8]">
-              Accedé a tus entradas compradas y tus Panda Points.
+              Accedé a tus entradas compradas y datos de compra.
             </p>
           </div>
 
@@ -147,11 +147,7 @@ function LoginContent() {
           </form>
 
           {/* Register Prompt */}
-          <div className="pt-4 border-t border-[#1C2237] text-center space-y-3">
-            <div className="flex items-center justify-center gap-1.5 text-xs text-amber-300 bg-amber-500/10 border border-amber-500/20 py-2 px-3 rounded-xl">
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>¡Registrate y ganá <strong>50 Panda Points</strong> de bienvenida!</span>
-            </div>
+          <div className="pt-4 border-t border-[#1C2237] text-center">
             <p className="text-xs text-gray-400">
               ¿Todavía no tenés cuenta?{" "}
               <Link

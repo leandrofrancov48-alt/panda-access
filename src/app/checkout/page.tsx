@@ -364,7 +364,7 @@ function CheckoutContent() {
         </div>
       )}
 
-      {/* User Session / Fidelity Banner */}
+      {/* User Session Banner */}
       {currentUser ? (
         <div className="bg-gradient-to-r from-amber-500/10 via-[#181510] to-[#0F121C] border border-amber-500/30 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-lg">
           <div className="flex items-center gap-3">
@@ -374,15 +374,12 @@ function CheckoutContent() {
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-extrabold text-white">¡Hola, {currentUser.name}!</span>
-                <span className="text-[10px] uppercase font-black px-2 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/30">
-                  Nivel {currentUser.tier} • {currentUser.points} pts
+                <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                  Sesión iniciada
                 </span>
               </div>
               <p className="text-xs text-[#A89C8B] mt-0.5">
-                Tus datos fueron cargados automáticamente. Con esta compra acumularás{" "}
-                <strong className="text-amber-400 font-bold">
-                  +{total === 0 ? 25 : Math.max(10, Math.floor(total / 1000) * 10)} Panda Points
-                </strong>.
+                Tus datos de comprador y contacto fueron completados automáticamente desde tu cuenta.
               </p>
             </div>
           </div>
@@ -398,7 +395,7 @@ function CheckoutContent() {
           <div className="flex items-center gap-2.5 text-gray-300">
             <Sparkles className="w-4 h-4 text-[#FFE600] shrink-0" />
             <span>
-              ¿Ya tenés cuenta en Panda Access? <strong className="text-white">Iniciá sesión</strong> para autocompletar tus datos y sumar Panda Points.
+              ¿Ya tenés cuenta en Panda Access? <strong className="text-white">Iniciá sesión</strong> para autocompletar todos tus datos en 1 click.
             </span>
           </div>
           <Link

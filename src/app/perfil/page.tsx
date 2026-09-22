@@ -5,19 +5,12 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Ticket,
-  Award,
   User,
   LogOut,
   Calendar,
   MapPin,
   ExternalLink,
-  ShieldCheck,
-  CheckCircle2,
-  Clock,
-  Sparkles,
-  ChevronRight,
   Loader2,
-  AlertCircle,
   Copy,
   Check,
 } from "lucide-react";
@@ -81,7 +74,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<UserProfile | null>(null);
-  const [activeTab, setActiveTab] = useState<"tickets" | "club" | "profile">("tickets");
+  const [activeTab, setActiveTab] = useState<"tickets" | "profile">("tickets");
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   useEffect(() => {
@@ -148,17 +141,6 @@ export default function ProfilePage() {
     }))
   );
 
-  // Loyalty calculation
-  const getNextTier = (tier: string) => {
-    if (tier === "BRONCE") return { name: "PLATA", target: 200 };
-    if (tier === "PLATA") return { name: "ORO", target: 500 };
-    if (tier === "ORO") return { name: "VIP", target: 1000 };
-    return { name: "NIVEL MÁXIMO", target: 1000 };
-  };
-
-  const nextTier = getNextTier(user.tier);
-  const progressPercent = Math.min(100, Math.round((user.points / nextTier.target) * 100));
-
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       {/* Header Profile Bar */}
@@ -174,27 +156,19 @@ export default function ProfilePage() {
               <h1 className="text-xl sm:text-2xl font-black text-white">
                 {user.name} {user.lastName}
               </h1>
-              <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30">
-                ⭐ {user.tier}
-              </span>
             </div>
             <p className="text-xs text-gray-400 mt-0.5">{user.email} • DNI {user.dni}</p>
           </div>
         </div>
 
         <div className="flex items-center gap-3 relative z-10">
-          <div className="bg-[#161B2B] border border-[#232B45] px-4 py-2 rounded-2xl text-right">
-            <span className="text-[10px] uppercase font-bold text-gray-400 block">Puntos Panda</span>
-            <span className="text-lg font-black text-[#FFE600]">{user.points} pts</span>
-          </div>
-
           <button
             onClick={handleLogout}
-            className="px-4 py-2.5 rounded-2xl bg-[#161B2B] hover:bg-red-500/15 border border-[#232B45] hover:border-red-500/30 text-gray-400 hover:text-red-400 text-xs font-bold transition-all flex items-center gap-2 cursor-pointer"
+            className="px-5 py-2.5 rounded-2xl bg-[#161B2B] hover:bg-red-500/15 border border-[#232B45] hover:border-red-500/30 text-gray-300 hover:text-red-400 text-xs font-bold transition-all flex items-center gap-2 cursor-pointer"
             title="Cerrar sesión"
           >
             <LogOut className="w-4 h-4" />
-            <span className="hidden sm:inline">Cerrar Sesión</span>
+            <span>Cerrar Sesión</span>
           </button>
         </div>
       </div>
@@ -211,18 +185,6 @@ export default function ProfilePage() {
         >
           <Ticket className="w-4 h-4" />
           Mis Entradas ({allTickets.length})
-        </button>
-
-        <button
-          onClick={() => setActiveTab("club")}
-          className={`px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all cursor-pointer ${
-            activeTab === "club"
-              ? "bg-[#FFE600] text-black shadow-lg shadow-[#FFE600]/20"
-              : "text-gray-400 hover:text-white hover:bg-[#161B2B]"
-          }`}
-        >
-          <Award className="w-4 h-4" />
-          Club Panda ({user.points} pts)
         </button>
 
         <button
@@ -352,120 +314,7 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* TAB 2: CLUB PANDA */}
-      {activeTab === "club" && (
-        <div className="space-y-8">
-          {/* Card Hero */}
-          <div className="bg-gradient-to-br from-[#161B2B] via-[#0F121C] to-[#141828] border border-amber-500/30 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-80 h-80 bg-amber-500/10 rounded-full blur-[100px] pointer-events-none" />
-
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <span className="text-xs uppercase font-extrabold text-amber-400 tracking-widest block mb-1">
-                  Programa Oficial de Fidelidad
-                </span>
-                <h2 className="text-2xl sm:text-3xl font-black text-white uppercase">
-                  Club Panda
-                </h2>
-              </div>
-              <div className="px-4 py-2 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-300 text-sm font-black uppercase tracking-wider w-fit">
-                ⭐ Categoría {user.tier}
-              </div>
-            </div>
-
-            {/* Points balance and progress bar */}
-            <div className="space-y-3 bg-[#0A0D16] p-5 rounded-2xl border border-[#1E253A]">
-              <div className="flex items-baseline justify-between">
-                <div>
-                  <span className="text-xs text-gray-400 block font-medium">Saldo Actual</span>
-                  <span className="text-3xl font-black text-[#FFE600]">{user.points} Panda Points</span>
-                </div>
-                {user.tier !== "VIP" && (
-                  <div className="text-right">
-                    <span className="text-xs text-gray-400 block font-medium">Próximo Nivel: {nextTier.name}</span>
-                    <span className="text-xs font-bold text-white">{nextTier.target - user.points} pts restantes</span>
-                  </div>
-                )}
-              </div>
-
-              {user.tier !== "VIP" && (
-                <div className="space-y-1">
-                  <div className="w-full h-3 rounded-full bg-[#161B2B] overflow-hidden p-0.5 border border-[#232B45]">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-amber-500 to-[#FFE600] transition-all duration-500"
-                      style={{ width: `${progressPercent}%` }}
-                    />
-                  </div>
-                  <div className="flex justify-between text-[10px] text-gray-500 font-mono">
-                    <span>{user.tier}</span>
-                    <span>{progressPercent}%</span>
-                    <span>{nextTier.name} ({nextTier.target} pts)</span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* How to earn */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-              <div className="bg-[#121624] p-4 rounded-xl border border-[#232B45] space-y-1">
-                <span className="text-xs font-bold text-white block">🎟️ Compras de Entradas</span>
-                <p className="text-[11px] text-gray-400">Sumás +10 pts por cada $1.000 consumidos en tus órdenes.</p>
-              </div>
-              <div className="bg-[#121624] p-4 rounded-xl border border-[#232B45] space-y-1">
-                <span className="text-xs font-bold text-white block">🎁 Eventos Gratuitos</span>
-                <p className="text-[11px] text-gray-400">Sumás +25 pts cada vez que te anotás a un evento libre.</p>
-              </div>
-              <div className="bg-[#121624] p-4 rounded-xl border border-[#232B45] space-y-1">
-                <span className="text-xs font-bold text-white block">🎂 Beneficios Exclusivos</span>
-                <p className="text-[11px] text-gray-400">Preventas anticipadas, sorteos y regalos de cumpleaños.</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Activity Log */}
-          <div className="bg-[#0F121C] border border-[#1E253A] rounded-2xl p-6 space-y-4">
-            <h3 className="text-base font-black text-white uppercase flex items-center gap-2">
-              <Clock className="w-4 h-4 text-[#FFE600]" />
-              Historial de Puntos Acumulados
-            </h3>
-
-            {(!user.loyaltyLogs || user.loyaltyLogs.length === 0) ? (
-              <p className="text-xs text-gray-400 py-4 text-center">
-                Aún no tenés movimientos de puntos registrados.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {user.loyaltyLogs.map((log) => {
-                  const logDate = new Date(log.createdAt).toLocaleDateString("es-AR", {
-                    day: "numeric",
-                    month: "short",
-                    year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  });
-
-                  return (
-                    <div
-                      key={log.id}
-                      className="flex items-center justify-between p-3 rounded-xl bg-[#141828] border border-[#21273C] text-xs"
-                    >
-                      <div className="space-y-0.5">
-                        <span className="font-bold text-white block">{log.reason}</span>
-                        <span className="text-[10px] text-gray-500 font-mono">{logDate}</span>
-                      </div>
-                      <span className="text-xs font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 px-2.5 py-1 rounded-lg shrink-0">
-                        +{log.points} pts
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* TAB 3: MIS DATOS */}
+      {/* TAB 2: MIS DATOS */}
       {activeTab === "profile" && (
         <div className="bg-[#0F121C] border border-[#1E253A] rounded-3xl p-6 sm:p-8 space-y-6">
           <div className="border-b border-[#1E253A] pb-4">

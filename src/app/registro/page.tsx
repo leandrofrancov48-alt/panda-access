@@ -114,19 +114,8 @@ function RegisterContent() {
               Creá tu Cuenta Panda Access
             </h1>
             <p className="text-xs text-[#94A3B8]">
-              Registrate una sola vez para comprar entradas más rápido y sumar puntos de fidelidad.
+              Registrate una sola vez para comprar entradas más rápido y tener tus accesos siempre a mano.
             </p>
-          </div>
-
-          {/* Welcome Promo Badge */}
-          <div className="bg-gradient-to-r from-amber-500/15 via-[#1E1912] to-amber-500/10 border border-amber-500/30 rounded-2xl p-3.5 flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
-              <Sparkles className="w-4 h-4" />
-            </div>
-            <div className="text-xs text-[#FAF6EE]">
-              <strong className="text-amber-400 font-bold block">¡Bono de Bienvenida!</strong>
-              <span>Recibí automáticamente <strong>+50 Panda Points</strong> al completar tu registro.</span>
-            </div>
           </div>
 
           {errorMessage && (
@@ -275,7 +264,7 @@ function RegisterContent() {
               ) : (
                 <>
                   <CheckCircle2 className="w-4 h-4" />
-                  Registrarme y Ganar 50 Puntos
+                  Crear Mi Cuenta
                 </>
               )}
             </button>

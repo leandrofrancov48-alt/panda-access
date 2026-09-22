@@ -87,8 +87,8 @@ export default function Navbar() {
                 🐼
               </span>
               <span>{user.name}</span>
-              <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300">
-                {user.points} pts
+              <span className="text-[10px] text-gray-400 font-bold">
+                Mi Cuenta
               </span>
             </Link>
           ) : (
@@ -172,11 +172,11 @@ export default function Navbar() {
                   </span>
                   <div className="text-left">
                     <span className="text-xs font-black block">{user.name}</span>
-                    <span className="text-[10px] text-amber-300 font-bold block">Mi Cuenta • {user.tier}</span>
+                    <span className="text-[10px] text-gray-400 font-bold block">Mi Cuenta</span>
                   </div>
                 </div>
-                <span className="text-xs font-black text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-lg border border-amber-400/30">
-                  {user.points} pts
+                <span className="text-xs font-bold text-amber-400">
+                  Ver perfil →
                 </span>
               </Link>
             ) : (
@@ -193,7 +193,7 @@ export default function Navbar() {
                   onClick={() => setMobileMenuOpen(false)}
                   className="py-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-center text-xs font-bold text-amber-300 hover:text-white"
                 >
-                  Registrarme (+50 pts)
+                  Registrarme
                 </Link>
               </div>
             )}

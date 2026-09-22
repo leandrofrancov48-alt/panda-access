@@ -56,7 +56,7 @@ export async function POST(req: Request) {
     // 3. Hash password
     const passwordHash = hashPassword(password);
 
-    // 4. Create user with 50 Panda Points welcome bonus
+    // 4. Create user
     const parsedBirthDate = birthDate ? new Date(birthDate) : null;
 
     const user = await db.$transaction(async (tx) => {
@@ -69,16 +69,8 @@ export async function POST(req: Request) {
           dni: cleanDni,
           phone: (phone || "").trim(),
           birthDate: parsedBirthDate,
-          points: 50, // Welcome bonus
+          points: 0,
           tier: "BRONCE",
-        },
-      });
-
-      await tx.loyaltyLog.create({
-        data: {
-          userId: newUser.id,
-          points: 50,
-          reason: "🎁 Bono de bienvenida por registrarte en Panda Access",
         },
       });
 

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sendTicketConfirmationEmail } from "@/lib/email";
 import { createMercadoPagoPreference, isMercadoPagoConfigured } from "@/lib/mercadopago";
-import { getCurrentUser, awardLoyaltyPoints } from "@/lib/user-auth";
+import { getCurrentUser } from "@/lib/user-auth";
 import crypto from "crypto";
 
 interface AttendeeInfo {
@@ -277,21 +277,6 @@ export async function POST(req: Request) {
       });
     } catch (err) {
       console.error("Email send error during checkout:", err);
-    }
-
-    // Award loyalty points if associated with a user
-    if (checkoutUserId) {
-      try {
-        const earnedPoints = total === 0 ? 25 : Math.max(10, Math.floor(total / 1000) * 10);
-        await awardLoyaltyPoints(
-          checkoutUserId,
-          earnedPoints,
-          `Compra de entradas para ${event.title} (Orden #${newOrder.orderNumber})`,
-          newOrder.id
-        );
-      } catch (loyaltyErr) {
-        console.error("Error awarding checkout loyalty points:", loyaltyErr);
-      }
     }
 
     return NextResponse.json({
