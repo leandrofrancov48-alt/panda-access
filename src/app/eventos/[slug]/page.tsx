@@ -8,6 +8,7 @@ import {
   Clock,
   ShieldAlert,
   ArrowLeft,
+  ArrowRight,
   Music,
   Share2,
   ExternalLink,
@@ -52,6 +53,11 @@ export default async function EventDetailPage({ params }: Props) {
     month: "long",
     year: "numeric",
   });
+
+  const mapQuery = [event.venue, event.address, event.city].filter(Boolean).join(", ");
+  const mapsEmbedUrl = `https://maps.google.com/maps?q=${encodeURIComponent(mapQuery)}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
+  const mapsSearchUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapQuery)}`;
+  const mapsDirectionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(mapQuery)}`;
 
   return (
     <div className="space-y-10">
@@ -194,27 +200,60 @@ export default async function EventDetailPage({ params }: Props) {
               </div>
             )}
 
-            {/* Location Box */}
+            {/* Location Box with Interactive Map */}
             <div className="bg-[#0F121C] border border-[#1E253A] rounded-2xl p-6 sm:p-8 space-y-4">
-              <h3 className="text-lg font-black uppercase text-white tracking-wide flex items-center gap-2">
-                <MapPin className="w-5 h-5 text-[#FF2E4C]" />
-                Ubicación del Predio
-              </h3>
               <div>
-                <p className="text-base font-extrabold text-white">{event.venue}</p>
-                <p className="text-sm text-[#94A3B8]">{event.address}, {event.city}</p>
+                <span className="text-[10px] font-black uppercase text-amber-400 tracking-widest block mb-1">
+                  UBICACIÓN
+                </span>
+                <h3 className="text-xl sm:text-2xl font-black uppercase text-white tracking-wide">
+                  {event.venue}
+                </h3>
               </div>
-              <a
-                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                  `${event.venue} ${event.address} ${event.city}`
-                )}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-xs font-bold text-[#38BDF8] hover:underline"
-              >
-                Abrir en Google Maps
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
+
+              {/* Map Preview Container */}
+              <div className="relative rounded-2xl overflow-hidden border border-[#232B45] bg-[#141828] shadow-lg group">
+                {/* Floating "Abrir en Maps" Button */}
+                <a
+                  href={mapsSearchUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="absolute top-3 left-3 z-10 px-3.5 py-1.5 rounded-xl bg-[#0F121C]/90 hover:bg-black text-white text-xs font-bold border border-white/20 shadow-xl backdrop-blur-md flex items-center gap-1.5 transition-all hover:scale-105 cursor-pointer"
+                >
+                  <span>Abrir en Maps</span>
+                  <ExternalLink className="w-3.5 h-3.5 text-amber-400" />
+                </a>
+
+                <iframe
+                  src={mapsEmbedUrl}
+                  className="w-full h-56 sm:h-72 border-0 rounded-2xl filter contrast-[1.03] brightness-95"
+                  loading="lazy"
+                  allowFullScreen={false}
+                  referrerPolicy="no-referrer-when-downgrade"
+                  title={`Ubicación de ${event.venue}`}
+                />
+              </div>
+
+              {/* Venue details and directions */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+                <div className="flex items-start gap-2.5">
+                  <MapPin className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="text-sm font-bold text-white block">{event.venue}</span>
+                    <span className="text-xs text-gray-400 block">{event.address}, {event.city}</span>
+                  </div>
+                </div>
+
+                <a
+                  href={mapsDirectionsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-black text-emerald-400 hover:text-emerald-300 flex items-center gap-1 transition-colors w-fit shrink-0 py-1"
+                >
+                  Cómo llegar
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </a>
+              </div>
             </div>
 
             {/* Rules & Requirements */}
