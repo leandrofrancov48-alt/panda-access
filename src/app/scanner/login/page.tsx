@@ -11,8 +11,8 @@ export default function ScannerLoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLogin = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setError(null);
     const cleanPassword = password.trim();
 
@@ -81,18 +81,28 @@ export default function ScannerLoginPage() {
         {/* Form */}
         <form onSubmit={handleLogin} className="space-y-4">
           <div className="space-y-1.5">
-            <label className="text-xs font-black text-amber-300 uppercase tracking-wider block">
+            <label htmlFor="scannerPassword" className="text-xs font-black text-amber-300 uppercase tracking-wider block">
               Clave de Puerta
             </label>
             <div className="relative">
               <KeyRound className="w-5 h-5 text-[#8F8270] absolute left-3.5 top-1/2 -translate-y-1/2" />
               <input
+                id="scannerPassword"
+                name="password"
                 type={showPassword ? "text" : "password"}
                 required
-                autoFocus
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="puerta2026"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleLogin();
+                  }
+                }}
+                enterKeyHint="go"
+                autoComplete="current-password"
+                inputMode="text"
+                placeholder="Ingresá la clave de puerta"
                 className="w-full pl-11 pr-11 py-3.5 bg-[#12100D] border border-[#2E2820] rounded-xl text-white text-sm outline-none focus:border-amber-400 focus:shadow-[0_0_15px_rgba(245,158,11,0.2)] transition-all placeholder:text-[#5A5040]"
               />
               <button
@@ -104,12 +114,11 @@ export default function ScannerLoginPage() {
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
-
           </div>
 
           <button
             type="submit"
-            disabled={loading || !password}
+            disabled={loading}
             className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-black font-black text-sm uppercase tracking-wider transition-all duration-300 border border-amber-200 shadow-[0_0_20px_rgba(245,158,11,0.4)] hover:shadow-[0_0_30px_rgba(245,158,11,0.7)] hover:scale-102 active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
           >
             {loading ? (

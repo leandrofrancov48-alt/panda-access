@@ -178,6 +178,9 @@ export default function QrScanner() {
       // Stop any existing instance cleanly
       await stopCamera();
 
+      // Brief delay to allow iOS Safari (WebKit) to fully release previous media stream tracks
+      await new Promise((resolve) => setTimeout(resolve, 150));
+
       if (!scannerRef.current) {
         scannerRef.current = new Html5Qrcode(readerElementId, {
           formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
@@ -190,25 +193,34 @@ export default function QrScanner() {
       }
 
       const activeFacing = preferredFacing || facingMode;
-      // If a specific camera was picked by the user, use it; otherwise use facingMode (environment = rear camera)
-      const cameraConfig = cameraId
-        ? cameraId
-        : selectedCamera
-        ? selectedCamera
-        : { facingMode: activeFacing };
+      const targetCameraId = cameraId !== undefined ? cameraId : selectedCamera;
+      const hasSpecificCamera = Boolean(targetCameraId && targetCameraId !== "");
 
-      // Start full-frame scan without artificial qrbox cropping for instant recognition
+      // CRITICAL FOR IOS SAFARI (iPhone / iPad):
+      // 1. If a specific cameraId (deviceId) is used, DO NOT specify facingMode or rigid width/height.
+      //    WebKit rejects conflicting deviceId + facingMode with OverconstrainedError, causing
+      //    html5-qrcode to fall back to navigator.mediaDevices.getUserMedia({ video: true }) which
+      //    ALWAYS opens the front-facing selfie camera on iOS!
+      // 2. If using facingMode: "environment", do NOT set restrictive width/height constraints
+      //    (e.g. width min 640 / height max 1080) because iPhone in portrait orientation fails them.
+      let cameraConfig: any;
+      let scanConfig: any = {
+        fps: 20,
+        disableFlip: activeFacing === "environment",
+      };
+
+      if (hasSpecificCamera) {
+        cameraConfig = targetCameraId;
+      } else {
+        cameraConfig = { facingMode: activeFacing };
+        scanConfig.videoConstraints = {
+          facingMode: { ideal: activeFacing },
+        };
+      }
+
       await scannerRef.current.start(
         cameraConfig,
-        {
-          fps: 20,
-          disableFlip: activeFacing === "environment",
-          videoConstraints: {
-            facingMode: { ideal: activeFacing },
-            width: { min: 640, ideal: 1280, max: 1920 },
-            height: { min: 480, ideal: 720, max: 1080 },
-          },
-        },
+        scanConfig,
         (decodedText) => {
           handleValidateCode(decodedText);
         },
@@ -220,13 +232,14 @@ export default function QrScanner() {
       setIsScanning(true);
 
       // Once permission is granted, enumerate actual cameras to show options
-      Html5Qrcode.getCameras()
-        .then((devices) => {
-          if (devices && devices.length > 0) {
-            setCameras(devices);
-          }
-        })
-        .catch(() => {});
+      try {
+        const devices = await Html5Qrcode.getCameras();
+        if (devices && devices.length > 0) {
+          setCameras(devices);
+        }
+      } catch (e) {
+        console.warn("Could not enumerate cameras:", e);
+      }
     } catch (err: unknown) {
       console.error("Start camera error:", err);
       const errMsg = err instanceof Error ? err.message : String(err);
@@ -247,7 +260,45 @@ export default function QrScanner() {
     const nextFacing = facingMode === "environment" ? "user" : "environment";
     setFacingMode(nextFacing);
     setSelectedCamera("");
-    if (isScanning) {
+
+    // If cameras were already enumerated on this device, look for the best matching device
+    let matchedDevice: string | undefined = undefined;
+    if (cameras.length > 0) {
+      if (nextFacing === "environment") {
+        const backCam =
+          cameras.find((c) => {
+            const l = (c.label || "").toLowerCase();
+            return (
+              (l.includes("back") ||
+                l.includes("trasera") ||
+                l.includes("rear") ||
+                l.includes("environment")) &&
+              !l.includes("ultra")
+            );
+          }) ||
+          cameras.find((c) => {
+            const l = (c.label || "").toLowerCase();
+            return l.includes("back") || l.includes("trasera") || l.includes("rear");
+          });
+        if (backCam) matchedDevice = backCam.id;
+      } else {
+        const frontCam = cameras.find((c) => {
+          const l = (c.label || "").toLowerCase();
+          return (
+            l.includes("front") ||
+            l.includes("frontal") ||
+            l.includes("user") ||
+            l.includes("selfie")
+          );
+        });
+        if (frontCam) matchedDevice = frontCam.id;
+      }
+    }
+
+    if (matchedDevice) {
+      setSelectedCamera(matchedDevice);
+      await startCamera(matchedDevice, nextFacing);
+    } else {
       await startCamera(undefined, nextFacing);
     }
   };
@@ -393,30 +444,61 @@ export default function QrScanner() {
                   <select
                     value={selectedCamera}
                     onChange={(e) => {
-                      setSelectedCamera(e.target.value);
-                      if (isScanning) {
-                        startCamera(e.target.value);
+                      const newId = e.target.value;
+                      setSelectedCamera(newId);
+                      if (newId) {
+                        const dev = cameras.find((c) => c.id === newId);
+                        const labelLower = (dev?.label || "").toLowerCase();
+                        const isFront =
+                          labelLower.includes("front") ||
+                          labelLower.includes("frontal") ||
+                          labelLower.includes("user") ||
+                          labelLower.includes("selfie");
+                        const newFacing = isFront ? "user" : "environment";
+                        setFacingMode(newFacing);
+                        if (isScanning) {
+                          startCamera(newId, newFacing);
+                        }
+                      } else {
+                        if (isScanning) {
+                          startCamera(undefined, facingMode);
+                        }
                       }
                     }}
-                    className="text-xs bg-[#171B2B] text-white border border-[#252C42] rounded-lg px-2.5 py-1"
+                    className="text-xs bg-[#171B2B] text-white border border-[#252C42] rounded-lg px-2.5 py-1.5 max-w-[180px] sm:max-w-xs truncate"
                   >
-                    <option value="">Cámara Automática ({facingMode === "environment" ? "Trasera" : "Frontal"})</option>
-                    {cameras.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.label || `Cámara ${c.id.slice(0, 8)}`}
-                      </option>
-                    ))}
+                    <option value="">
+                      Cámara Automática ({facingMode === "environment" ? "Trasera" : "Frontal"})
+                    </option>
+                    {cameras.map((c) => {
+                      const l = c.label || "";
+                      const isBack =
+                        l.toLowerCase().includes("back") ||
+                        l.toLowerCase().includes("trasera") ||
+                        l.toLowerCase().includes("rear");
+                      const isFront =
+                        l.toLowerCase().includes("front") ||
+                        l.toLowerCase().includes("frontal") ||
+                        l.toLowerCase().includes("user");
+                      const prefix = isBack ? "📷 " : isFront ? "🤳 " : "📹 ";
+                      return (
+                        <option key={c.id} value={c.id}>
+                          {prefix}
+                          {l || `Cámara ${c.id.slice(0, 8)}`}
+                        </option>
+                      );
+                    })}
                   </select>
                 )}
 
                 <button
                   type="button"
                   onClick={handleToggleCamera}
-                  className="px-2.5 py-1 rounded-lg bg-[#181C2E] border border-[#283250] text-gray-300 hover:text-white text-xs font-semibold flex items-center gap-1 transition-colors cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg bg-[#181C2E] border border-[#283250] text-gray-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
                   title="Cambiar entre cámara trasera y frontal"
                 >
                   <FlipHorizontal className="w-3.5 h-3.5 text-[#FFE600]" />
-                  <span className="hidden sm:inline">Girar</span>
+                  <span className="text-[11px] font-bold">{facingMode === "environment" ? "Trasera" : "Frontal"}</span>
                 </button>
               </div>
             </div>

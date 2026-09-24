@@ -12,8 +12,13 @@ export default function AdminLoginPage() {
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleLogin = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const cleanPassword = password.trim();
+    if (!cleanPassword) {
+      setErrorMessage("Por favor ingresá la contraseña.");
+      return;
+    }
     setErrorMessage(null);
     setLoading(true);
 
@@ -21,7 +26,7 @@ export default function AdminLoginPage() {
       const res = await fetch("/api/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
+        body: JSON.stringify({ password: cleanPassword }),
       });
 
       const data = await res.json();
@@ -39,11 +44,11 @@ export default function AdminLoginPage() {
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center px-4 relative">
+    <div className="min-h-[85dvh] flex items-center justify-center px-4 py-8 sm:py-12 relative overflow-y-auto">
       {/* Background glow orbs */}
       <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
 
-      <div className="w-full max-w-md bg-gradient-to-b from-[#181511] via-[#14120E] to-[#0E0C09] border-2 border-amber-500/30 rounded-3xl p-8 sm:p-10 shadow-[0_0_50px_rgba(245,158,11,0.15)] relative space-y-6">
+      <div className="w-full max-w-md bg-gradient-to-b from-[#181511] via-[#14120E] to-[#0E0C09] border-2 border-amber-500/30 rounded-3xl p-6 sm:p-10 shadow-[0_0_50px_rgba(245,158,11,0.15)] relative space-y-6 my-auto">
         {/* Header with Logo */}
         <div className="text-center space-y-3">
           <div className="w-16 h-16 rounded-2xl bg-[#100E0B] border border-amber-400/50 flex items-center justify-center mx-auto shadow-[0_0_20px_rgba(245,158,11,0.25)]">
@@ -74,16 +79,26 @@ export default function AdminLoginPage() {
         {/* Form */}
         <form onSubmit={handleLogin} className="space-y-5">
           <div>
-            <label className="text-xs font-bold text-[#CEC1AD] block mb-2 uppercase tracking-wider">
+            <label htmlFor="adminPassword" className="text-xs font-bold text-[#CEC1AD] block mb-2 uppercase tracking-wider">
               Contraseña de Administrador
             </label>
             <div className="relative">
               <input
+                id="adminPassword"
+                name="password"
                 type={showPassword ? "text" : "password"}
                 required
-                autoFocus
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    handleLogin();
+                  }
+                }}
+                enterKeyHint="go"
+                autoComplete="current-password"
+                inputMode="text"
                 placeholder="Ingresá la contraseña"
                 className="w-full px-4 py-3.5 pr-12 bg-[#100E0B] border border-[#2E2820] rounded-xl text-[#FAF6EE] text-sm focus:border-amber-400 focus:shadow-[0_0_15px_rgba(245,158,11,0.2)] outline-none transition-all placeholder:text-[#5C5346]"
               />
@@ -100,7 +115,7 @@ export default function AdminLoginPage() {
 
           <button
             type="submit"
-            disabled={loading || !password}
+            disabled={loading}
             className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-black font-black text-sm uppercase tracking-wider transition-all duration-300 border border-amber-200 shadow-[0_0_20px_rgba(245,158,11,0.4)] hover:shadow-[0_0_30px_rgba(245,158,11,0.7)] hover:scale-102 active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 cursor-pointer"
           >
             {loading ? (
