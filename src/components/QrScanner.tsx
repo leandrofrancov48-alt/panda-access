@@ -185,10 +185,6 @@ export default function QrScanner() {
         scannerRef.current = new Html5Qrcode(readerElementId, {
           formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
           verbose: false,
-          useBarCodeDetectorIfSupported: true,
-          experimentalFeatures: {
-            useBarCodeDetectorIfSupported: true,
-          },
         });
       }
 
@@ -196,26 +192,23 @@ export default function QrScanner() {
       const targetCameraId = cameraId !== undefined ? cameraId : selectedCamera;
       const hasSpecificCamera = Boolean(targetCameraId && targetCameraId !== "");
 
-      // CRITICAL FOR IOS SAFARI (iPhone / iPad):
-      // 1. If a specific cameraId (deviceId) is used, DO NOT specify facingMode or rigid width/height.
-      //    WebKit rejects conflicting deviceId + facingMode with OverconstrainedError, causing
-      //    html5-qrcode to fall back to navigator.mediaDevices.getUserMedia({ video: true }) which
-      //    ALWAYS opens the front-facing selfie camera on iOS!
-      // 2. If using facingMode: "environment", do NOT set restrictive width/height constraints
-      //    (e.g. width min 640 / height max 1080) because iPhone in portrait orientation fails them.
       let cameraConfig: any;
-      let scanConfig: any = {
-        fps: 20,
+      const scanConfig: any = {
+        fps: 12,
         disableFlip: activeFacing === "environment",
+        qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
+          const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+          const size = Math.floor(minEdge * 0.72);
+          return { width: size, height: size };
+        },
       };
 
       if (hasSpecificCamera) {
         cameraConfig = targetCameraId;
+      } else if (activeFacing === "environment") {
+        cameraConfig = { facingMode: "environment" };
       } else {
-        cameraConfig = { facingMode: activeFacing };
-        scanConfig.videoConstraints = {
-          facingMode: { ideal: activeFacing },
-        };
+        cameraConfig = { facingMode: "user" };
       }
 
       await scannerRef.current.start(
@@ -327,9 +320,6 @@ export default function QrScanner() {
         scannerRef.current = new Html5Qrcode(readerElementId, {
           formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
           verbose: false,
-          experimentalFeatures: {
-            useBarCodeDetectorIfSupported: true,
-          },
         });
       }
 
