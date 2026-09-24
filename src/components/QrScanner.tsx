@@ -57,10 +57,36 @@ export default function QrScanner() {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
 
+  const [zoomLevel, setZoomLevel] = useState<number>(1);
+  const [supportsZoom, setSupportsZoom] = useState<boolean>(false);
+
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const isProcessingRef = useRef<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const nativeCameraInputRef = useRef<HTMLInputElement>(null);
   const readerElementId = "qr-reader-viewport";
+
+  const applyZoom = async (zoom: number) => {
+    try {
+      const videoElement = document.querySelector(`#${readerElementId} video`) as HTMLVideoElement | null;
+      if (videoElement && videoElement.srcObject) {
+        const stream = videoElement.srcObject as MediaStream;
+        const track = stream.getVideoTracks()[0];
+        if (track) {
+          const capabilities = (track as any).getCapabilities ? (track as any).getCapabilities() : null;
+          if (capabilities && capabilities.zoom) {
+            const minZ = capabilities.zoom.min || 1;
+            const maxZ = capabilities.zoom.max || 5;
+            const clamped = Math.min(Math.max(zoom, minZ), maxZ);
+            await (track as any).applyConstraints({ advanced: [{ zoom: clamped }] });
+            setZoomLevel(clamped);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Zoom error:", e);
+    }
+  };
 
   // Web Audio Synth for instant feedback without external audio files
   const playSound = (type: "VALID" | "ALREADY_USED" | "INVALID") => {
@@ -192,21 +218,28 @@ export default function QrScanner() {
       const targetCameraId = cameraId !== undefined ? cameraId : selectedCamera;
       const hasSpecificCamera = Boolean(targetCameraId && targetCameraId !== "");
 
-      let cameraConfig: any;
+      // Full-frame scanning without artificial qrbox cropping ensures instant recognition across all sensors
       const scanConfig: any = {
-        fps: 12,
+        fps: 15,
         disableFlip: activeFacing === "environment",
-        qrbox: (viewfinderWidth: number, viewfinderHeight: number) => {
-          const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-          const size = Math.floor(minEdge * 0.72);
-          return { width: size, height: size };
-        },
       };
+
+      let cameraConfig: any;
 
       if (hasSpecificCamera) {
         cameraConfig = targetCameraId;
       } else if (activeFacing === "environment") {
-        cameraConfig = { facingMode: "environment" };
+        // If devices are already enumerated, find the primary 1x back camera (not ultra-wide)
+        const mainBack = cameras.find((c) => {
+          const l = (c.label || "").toLowerCase();
+          return (
+            (l.includes("back") || l.includes("trasera") || l.includes("rear")) &&
+            !l.includes("ultra") &&
+            !l.includes("0.5") &&
+            !l.includes("telephoto")
+          );
+        });
+        cameraConfig = mainBack ? mainBack.id : { facingMode: "environment" };
       } else {
         cameraConfig = { facingMode: "user" };
       }
@@ -223,6 +256,28 @@ export default function QrScanner() {
       );
 
       setIsScanning(true);
+
+      // Apply autofocus and detect zoom support on mobile video track
+      try {
+        const videoElement = document.querySelector(`#${readerElementId} video`) as HTMLVideoElement | null;
+        if (videoElement && videoElement.srcObject) {
+          const stream = videoElement.srcObject as MediaStream;
+          const track = stream.getVideoTracks()[0];
+          if (track) {
+            const capabilities = (track as any).getCapabilities ? (track as any).getCapabilities() : null;
+            if (capabilities) {
+              if (capabilities.focusMode && capabilities.focusMode.includes("continuous")) {
+                await (track as any).applyConstraints({ advanced: [{ focusMode: "continuous" }] });
+              }
+              if (capabilities.zoom) {
+                setSupportsZoom(true);
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.warn("Could not apply camera track optimizations:", e);
+      }
 
       // Once permission is granted, enumerate actual cameras to show options
       try {
@@ -534,6 +589,30 @@ export default function QrScanner() {
                     </div>
                   </div>
 
+                  {/* Zoom controls if device supports optical/digital zoom */}
+                  {supportsZoom && (
+                    <div className="absolute top-3 right-3 z-10 flex items-center bg-black/80 backdrop-blur-md rounded-full border border-neutral-700 p-1 pointer-events-auto gap-1">
+                      <button
+                        type="button"
+                        onClick={() => applyZoom(1)}
+                        className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${
+                          zoomLevel === 1 ? "bg-amber-400 text-black shadow-sm" : "text-gray-300 hover:text-white"
+                        }`}
+                      >
+                        1x
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => applyZoom(2)}
+                        className={`px-2.5 py-1 rounded-full text-xs font-bold transition-all ${
+                          zoomLevel >= 2 ? "bg-amber-400 text-black shadow-sm" : "text-gray-300 hover:text-white"
+                        }`}
+                      >
+                        2x
+                      </button>
+                    </div>
+                  )}
+
                   <div className="absolute bottom-3 left-3 right-3 z-10 flex justify-between items-center pointer-events-none">
                     <span className="bg-black/85 backdrop-blur-md px-3 py-1.5 rounded-full text-[11px] font-mono text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5 pointer-events-auto">
                       <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
@@ -556,9 +635,27 @@ export default function QrScanner() {
               </div>
             )}
 
-            {/* Alternative: Upload Photo / Screenshot of QR */}
-            <div className="pt-1 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs border-t border-[#1C2236]">
-              <span className="text-[#64748B]">¿Tenés una foto o captura del QR?</span>
+            {/* Alternative: Native Camera Photo or Upload Screenshot */}
+            <div className="pt-2 flex flex-wrap items-center justify-between gap-2.5 text-xs border-t border-[#1C2236]">
+              {/* Native iOS camera capture input */}
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                ref={nativeCameraInputRef}
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => nativeCameraInputRef.current?.click()}
+                disabled={isProcessing}
+                className="px-3.5 py-2 rounded-xl bg-amber-400/20 hover:bg-amber-400/30 border border-amber-400/40 text-amber-300 font-bold flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-40"
+              >
+                <Camera className="w-3.5 h-3.5 text-amber-400" />
+                <span>📸 Tomar foto con cámara del cel</span>
+              </button>
+
               <input
                 type="file"
                 accept="image/*"
@@ -570,10 +667,10 @@ export default function QrScanner() {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isProcessing}
-                className="px-3.5 py-1.5 rounded-lg bg-[#141827] hover:bg-[#1E253A] border border-[#232B45] text-gray-200 font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-40"
+                className="px-3 py-2 rounded-xl bg-[#141827] hover:bg-[#1E253A] border border-[#232B45] text-gray-300 font-medium flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-40"
               >
                 <UploadCloud className="w-3.5 h-3.5 text-[#38BDF8]" />
-                Subir foto / captura
+                <span>Subir captura</span>
               </button>
             </div>
 
