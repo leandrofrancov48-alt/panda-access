@@ -63,6 +63,8 @@ export default function QrScanner() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const nativeCameraInputRef = useRef<HTMLInputElement>(null);
+  const resultRef = useRef<HTMLDivElement>(null);
+  const cameraSectionRef = useRef<HTMLDivElement>(null);
 
   // Cooldown system: timestamp-based instead of boolean to prevent permanent lock
   const lastScanTimestampRef = useRef<number>(0);
@@ -148,12 +150,27 @@ export default function QrScanner() {
           // Only auto-clear if it's the same result (user didn't already clear it)
           if (prev && prev.message) {
             lastScannedCodeRef.current = ""; // Allow same code to be re-scanned
+            if (typeof window !== "undefined" && window.innerWidth < 1024) {
+              cameraSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
           }
           return null;
         });
       }, 4000);
     }
   }, []);
+
+  // Auto-scroll to verification result when a code is scanned or validated (especially on mobile)
+  useEffect(() => {
+    if (isProcessing || scanResult) {
+      const timer = setTimeout(() => {
+        if (typeof window !== "undefined" && window.innerWidth < 1024) {
+          resultRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [isProcessing, scanResult]);
 
   // Flag to suppress watchdog during intentional camera switches
   const isSwitchingCameraRef = useRef<boolean>(false);
@@ -514,6 +531,9 @@ export default function QrScanner() {
     setScanResult(null);
     lastScanTimestampRef.current = 0;
     lastScannedCodeRef.current = "";
+    if (typeof window !== "undefined" && window.innerWidth < 1024) {
+      cameraSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -645,7 +665,7 @@ export default function QrScanner() {
       {/* Main Scanner Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Left Column: Camera / Scanner (7 cols) */}
-        <div className="lg:col-span-7 space-y-4">
+        <div ref={cameraSectionRef} className="lg:col-span-7 space-y-4 scroll-mt-6">
           <div className="bg-[#0F121C] border border-[#1E253A] rounded-2xl p-5 space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-widest text-[#94A3B8] flex items-center gap-1.5">
@@ -885,7 +905,7 @@ export default function QrScanner() {
         </div>
 
         {/* Right Column: Scan Result & Realtime Feedback (5 cols) */}
-        <div className="lg:col-span-5 space-y-4">
+        <div ref={resultRef} className="lg:col-span-5 space-y-4 scroll-mt-6">
           {/* Result Card */}
           <div className="bg-[#0F121C] border border-[#1E253A] rounded-2xl p-6 min-h-[380px] flex flex-col justify-between">
             <div>
