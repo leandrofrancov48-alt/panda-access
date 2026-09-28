@@ -28,6 +28,7 @@ import {
   AlertTriangle,
   Loader2,
   RefreshCw,
+  RotateCcw,
   Play,
   Pause,
 } from "lucide-react";
@@ -183,6 +184,12 @@ export default function AdminEventsManager({
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null);
+
+  // Estado para vaciar / reiniciar entradas de evento recurrente
+  const [eventToReset, setEventToReset] = useState<EventWithDetails | null>(null);
+  const [isResetting, setIsResetting] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [resetSuccess, setResetSuccess] = useState<string | null>(null);
 
   // Estado para eliminar venta / entrada de prueba
   const [saleToDelete, setSaleToDelete] = useState<TicketWithOrder | null>(null);
@@ -441,6 +448,33 @@ export default function AdminEventsManager({
       setDeleteError((err as Error).message);
     } finally {
       setIsDeleting(false);
+    }
+  };
+
+  // Confirmar vaciado/reinicio de entradas para evento recurrente
+  const handleResetTicketsConfirm = async () => {
+    if (!eventToReset) return;
+    setIsResetting(true);
+    setResetError(null);
+
+    try {
+      const res = await fetch(`/api/admin/events/${eventToReset.id}/reset-tickets`, {
+        method: "POST",
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Error al reiniciar las entradas del evento.");
+      }
+
+      setResetSuccess(data.message || "Entradas vaciadas y evento listo para una nueva fecha.");
+      setEventToReset(null);
+      await fetchLiveData(true);
+      router.refresh();
+      setTimeout(() => setResetSuccess(null), 7000);
+    } catch (err: unknown) {
+      setResetError((err as Error).message);
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -721,6 +755,16 @@ export default function AdminEventsManager({
 
               <button
                 type="button"
+                onClick={() => setEventToReset(currentEvent)}
+                className="px-3.5 py-1.5 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-xs font-bold text-amber-400 hover:text-amber-300 flex items-center gap-1.5 w-fit transition-colors cursor-pointer"
+                title="Borrar todas las entradas vendidas y reiniciar cupos a 0 para reutilizar el evento en una nueva fecha"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Vaciar Entradas
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setEventToDelete(currentEvent)}
                 className="px-3.5 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-xs font-bold text-red-400 hover:text-red-300 flex items-center gap-1.5 w-fit transition-colors cursor-pointer"
                 title="Eliminar este evento de la base de datos"
@@ -736,6 +780,13 @@ export default function AdminEventsManager({
           <div className="bg-emerald-500/15 border border-emerald-500/30 rounded-xl p-3.5 flex items-center gap-2 text-emerald-300 text-xs animate-in fade-in">
             <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
             <span>{deleteSuccess}</span>
+          </div>
+        )}
+
+        {resetSuccess && (
+          <div className="bg-emerald-500/15 border border-emerald-500/30 rounded-xl p-3.5 flex items-center gap-2 text-emerald-300 text-xs animate-in fade-in">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>{resetSuccess}</span>
           </div>
         )}
 
@@ -1276,6 +1327,103 @@ export default function AdminEventsManager({
                   <>
                     <Trash2 className="w-4 h-4" />
                     Sí, Eliminar Evento
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmación para Vaciar/Reiniciar Entradas */}
+      {eventToReset && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-[#120F0B] border-2 border-amber-500/40 rounded-3xl max-w-md w-full p-6 sm:p-7 space-y-5 shadow-[0_0_50px_rgba(245,158,11,0.25)] relative">
+            <button
+              onClick={() => {
+                if (!isResetting) {
+                  setEventToReset(null);
+                  setResetError(null);
+                }
+              }}
+              disabled={isResetting}
+              className="absolute top-5 right-5 text-gray-400 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors disabled:opacity-30 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+                <RotateCcw className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-white">
+                  ¿Vaciar y Reiniciar Entradas?
+                </h3>
+                <p className="text-xs text-amber-400 font-medium">
+                  Ideal para eventos semanales o recurrentes
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3 text-xs text-gray-300 bg-[#1C1813] p-4 rounded-xl border border-[#3A3228]">
+              <p className="text-[#CEC1AD]">
+                Estás a punto de borrar todas las entradas vendidas de:
+              </p>
+              <p className="font-black text-white text-sm">
+                "{eventToReset.title}"
+              </p>
+              <div className="space-y-2 pt-2 border-t border-[#2A231A]">
+                <div className="flex items-start gap-2 text-emerald-400">
+                  <Check className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>Se conservan el afiche, nombre, lugar, tandas y precios para la próxima fecha.</span>
+                </div>
+                <div className="flex items-start gap-2 text-emerald-400">
+                  <Check className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>Los cupos vuelven a <strong>0 vendidas</strong> y se reactivan las tandas agotadas.</span>
+                </div>
+                <div className="flex items-start gap-2 text-red-400">
+                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <span>Se borrarán las <strong>{liveTickets.filter((t) => t.order.eventId === eventToReset.id).length}</strong> entradas emitidas previamente (quedarán inválidas para ingresar).</span>
+                </div>
+              </div>
+            </div>
+
+            {resetError && (
+              <div className="bg-red-500/15 border border-red-500/30 p-3 rounded-xl text-red-300 text-xs flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-red-400" />
+                <span>{resetError}</span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setEventToReset(null);
+                  setResetError(null);
+                }}
+                disabled={isResetting}
+                className="px-4 py-2.5 rounded-xl bg-[#201C16] hover:bg-[#2A241C] text-[#CEC1AD] hover:text-white text-xs font-bold transition-colors cursor-pointer disabled:opacity-40 border border-[#332B21]"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                onClick={handleResetTicketsConfirm}
+                disabled={isResetting}
+                className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-black flex items-center gap-2 transition-all cursor-pointer shadow-lg shadow-amber-500/25 disabled:opacity-50 active:scale-95"
+              >
+                {isResetting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Vaciando Entradas...
+                  </>
+                ) : (
+                  <>
+                    <RotateCcw className="w-4 h-4" />
+                    Sí, Vaciar y Reiniciar
                   </>
                 )}
               </button>
