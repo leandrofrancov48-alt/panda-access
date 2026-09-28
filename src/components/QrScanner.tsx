@@ -7,8 +7,6 @@ import {
   CheckCircle2,
   AlertTriangle,
   XCircle,
-  Volume2,
-  VolumeX,
   Search,
   RefreshCw,
   Zap,
@@ -52,7 +50,6 @@ export default function QrScanner() {
   const [manualCode, setManualCode] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
-  const [soundEnabled, setSoundEnabled] = useState(true);
   const [recentScans, setRecentScans] = useState<ScanResult[]>([]);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
@@ -66,7 +63,6 @@ export default function QrScanner() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const nativeCameraInputRef = useRef<HTMLInputElement>(null);
-  const audioCtxRef = useRef<AudioContext | null>(null);
 
   // Cooldown system: timestamp-based instead of boolean to prevent permanent lock
   const lastScanTimestampRef = useRef<number>(0);
@@ -99,65 +95,6 @@ export default function QrScanner() {
     }
   };
 
-  // Web Audio Synth for instant feedback — reuses a single AudioContext
-  const playSound = (type: "VALID" | "ALREADY_USED" | "INVALID") => {
-    if (!soundEnabled) return;
-    try {
-      const AudioContextClass =
-        window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      if (!audioCtxRef.current || audioCtxRef.current.state === "closed") {
-        audioCtxRef.current = new AudioContextClass();
-      }
-      const ctx = audioCtxRef.current;
-      // Resume if suspended (iOS requires user gesture to resume)
-      if (ctx.state === "suspended") {
-        ctx.resume().catch(() => {});
-      }
-
-      if (type === "VALID") {
-        // High melodic double chime (C6 -> G6)
-        const osc1 = ctx.createOscillator();
-        const gain1 = ctx.createGain();
-        osc1.type = "sine";
-        osc1.frequency.setValueAtTime(1046.5, ctx.currentTime); // C6
-        osc1.frequency.setValueAtTime(1567.98, ctx.currentTime + 0.12); // G6
-        gain1.gain.setValueAtTime(0.3, ctx.currentTime);
-        gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
-        osc1.connect(gain1);
-        gain1.connect(ctx.destination);
-        osc1.start();
-        osc1.stop(ctx.currentTime + 0.35);
-      } else if (type === "ALREADY_USED") {
-        // Warning dual buzz (two mid-low tones)
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = "sawtooth";
-        osc.frequency.setValueAtTime(320, ctx.currentTime);
-        osc.frequency.setValueAtTime(260, ctx.currentTime + 0.15);
-        gain.gain.setValueAtTime(0.25, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.4);
-      } else {
-        // Invalid low error buzz
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = "square";
-        osc.frequency.setValueAtTime(180, ctx.currentTime);
-        gain.gain.setValueAtTime(0.3, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.4);
-      }
-    } catch {
-      // Audio context might be restricted before user gesture
-    }
-  };
-
   const handleValidateCode = useCallback(async (rawCode: string) => {
     const code = rawCode.trim();
     if (!code) return;
@@ -187,7 +124,6 @@ export default function QrScanner() {
 
       const data: ScanResult = await res.json();
       setScanResult(data);
-      playSound(data.status as "VALID" | "ALREADY_USED" | "INVALID");
 
       if (typeof navigator !== "undefined" && navigator.vibrate) {
         navigator.vibrate(data.status === "VALID" ? 150 : [80, 50, 80]);
@@ -203,7 +139,6 @@ export default function QrScanner() {
           : "Error de conexión al verificar entrada. Comprueba tu conexión a internet.",
       };
       setScanResult(errResult);
-      playSound("INVALID");
     } finally {
       setIsProcessing(false);
       // Auto-clear result after 4 seconds so scanning resumes automatically
@@ -218,7 +153,7 @@ export default function QrScanner() {
         });
       }, 4000);
     }
-  }, [soundEnabled]);
+  }, []);
 
   // Flag to suppress watchdog during intentional camera switches
   const isSwitchingCameraRef = useRef<boolean>(false);
@@ -614,7 +549,6 @@ export default function QrScanner() {
               status: "INVALID",
               message: "No se encontró ningún código QR legible en la foto. Intenta con mejor iluminación.",
             });
-            playSound("INVALID");
           }
         } catch (err) {
           console.warn("Decode image error:", err);
@@ -622,7 +556,6 @@ export default function QrScanner() {
             status: "ERROR",
             message: "Error al procesar la imagen del QR.",
           });
-          playSound("INVALID");
         } finally {
           URL.revokeObjectURL(objectUrl);
           setIsProcessing(false);
@@ -654,10 +587,6 @@ export default function QrScanner() {
 
     return () => {
       stopCamera();
-      // Clean up AudioContext
-      if (audioCtxRef.current && audioCtxRef.current.state !== "closed") {
-        audioCtxRef.current.close().catch(() => {});
-      }
     };
   }, []);
 
@@ -671,7 +600,7 @@ export default function QrScanner() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
-      {/* Top Banner & Audio Control */}
+      {/* Top Banner */}
       <div className="bg-[#0F121C] border border-[#1E253A] rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
@@ -693,27 +622,6 @@ export default function QrScanner() {
           >
             <HelpCircle className="w-4 h-4 text-[#38BDF8]" />
             <span className="hidden sm:inline">Consejos de lectura</span>
-          </button>
-
-          <button
-            onClick={() => setSoundEnabled(!soundEnabled)}
-            className={`p-2.5 rounded-xl border flex items-center gap-2 text-xs font-bold transition-colors cursor-pointer ${
-              soundEnabled
-                ? "bg-[#181C2E] border-[#FFE600]/40 text-[#FFE600]"
-                : "bg-[#121522] border-[#21273C] text-gray-500"
-            }`}
-          >
-            {soundEnabled ? (
-              <>
-                <Volume2 className="w-4 h-4" />
-                <span className="hidden sm:inline">Sonido Activado</span>
-              </>
-            ) : (
-              <>
-                <VolumeX className="w-4 h-4" />
-                <span className="hidden sm:inline">Sonido Silenciado</span>
-              </>
-            )}
           </button>
         </div>
       </div>
