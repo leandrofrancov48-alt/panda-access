@@ -64,9 +64,19 @@ export default function QrScanner() {
   const streamRef = useRef<MediaStream | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const isProcessingRef = useRef<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const nativeCameraInputRef = useRef<HTMLInputElement>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+
+  // Cooldown system: timestamp-based instead of boolean to prevent permanent lock
+  const lastScanTimestampRef = useRef<number>(0);
+  const lastScannedCodeRef = useRef<string>("");
+  const SCAN_COOLDOWN_MS = 3000; // 3 seconds between scans of the same code
+  const SCAN_LOCK_MS = 1500; // 1.5 seconds general lock after any scan starts
+
+  const isScanLocked = () => {
+    return Date.now() - lastScanTimestampRef.current < SCAN_LOCK_MS;
+  };
 
   // Apply optical or digital zoom via standard WebRTC track constraints
   const applyZoom = async (zoom: number) => {
@@ -89,13 +99,20 @@ export default function QrScanner() {
     }
   };
 
-  // Web Audio Synth for instant feedback without external audio files
+  // Web Audio Synth for instant feedback — reuses a single AudioContext
   const playSound = (type: "VALID" | "ALREADY_USED" | "INVALID") => {
     if (!soundEnabled) return;
     try {
       const AudioContextClass =
         window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      const ctx = new AudioContextClass();
+      if (!audioCtxRef.current || audioCtxRef.current.state === "closed") {
+        audioCtxRef.current = new AudioContextClass();
+      }
+      const ctx = audioCtxRef.current;
+      // Resume if suspended (iOS requires user gesture to resume)
+      if (ctx.state === "suspended") {
+        ctx.resume().catch(() => {});
+      }
 
       if (type === "VALID") {
         // High melodic double chime (C6 -> G6)
@@ -143,17 +160,30 @@ export default function QrScanner() {
 
   const handleValidateCode = useCallback(async (rawCode: string) => {
     const code = rawCode.trim();
-    if (!code || isProcessingRef.current) return;
+    if (!code) return;
 
-    isProcessingRef.current = true;
+    // Cooldown check: prevent rapid-fire duplicate scans
+    const now = Date.now();
+    if (now - lastScanTimestampRef.current < SCAN_LOCK_MS) return;
+    if (code === lastScannedCodeRef.current && now - lastScanTimestampRef.current < SCAN_COOLDOWN_MS) return;
+
+    // Mark scan timestamp and code immediately
+    lastScanTimestampRef.current = now;
+    lastScannedCodeRef.current = code;
     setIsProcessing(true);
 
     try {
+      // Fetch with a 8-second timeout so a hung request can't permanently block scanning
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+
       const res = await fetch("/api/scan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ code }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
 
       const data: ScanResult = await res.json();
       setScanResult(data);
@@ -163,16 +193,30 @@ export default function QrScanner() {
         navigator.vibrate(data.status === "VALID" ? 150 : [80, 50, 80]);
       }
 
-      setRecentScans((prev) => [data, ...prev.slice(0, 9)]);
+      setRecentScans((prev) => [data, ...prev.slice(0, 49)]);
     } catch (err) {
       console.error("Validation error:", err);
       const errResult: ScanResult = {
         status: "ERROR",
-        message: "Error de conexión al verificar entrada. Comprueba tu conexión a internet.",
+        message: err instanceof DOMException && err.name === "AbortError"
+          ? "La verificación tardó demasiado. Reintentá o usá el código manual."
+          : "Error de conexión al verificar entrada. Comprueba tu conexión a internet.",
       };
       setScanResult(errResult);
+      playSound("INVALID");
     } finally {
       setIsProcessing(false);
+      // Auto-clear result after 4 seconds so scanning resumes automatically
+      // The operator doesn't need to press "Siguiente" in a busy door line
+      setTimeout(() => {
+        setScanResult((prev) => {
+          // Only auto-clear if it's the same result (user didn't already clear it)
+          if (prev && prev.message) {
+            lastScannedCodeRef.current = ""; // Allow same code to be re-scanned
+          }
+          return null;
+        });
+      }, 4000);
     }
   }, [soundEnabled]);
 
@@ -341,26 +385,28 @@ export default function QrScanner() {
     }
   };
 
+
   // Continuous scanning loop using jsQR + native BarcodeDetector fallback
   useEffect(() => {
     if (!isScanning) return;
 
     let isLoopRunning = true;
-    let lastScanTime = 0;
-    const scanIntervalMs = 90; // Scans ~11 times per second for instant detection and low CPU/battery consumption
+    let lastFrameTime = 0;
+    const scanIntervalMs = 100; // ~10 fps scanning — fast enough for instant reads, light on CPU
 
-    const scanFrame = async () => {
+    const scanFrame = () => {
       if (!isLoopRunning) return;
 
       const video = videoRef.current;
       if (
         video &&
         video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
-        !isProcessingRef.current
+        !isScanLocked() &&
+        !isProcessing
       ) {
         const now = Date.now();
-        if (now - lastScanTime >= scanIntervalMs) {
-          lastScanTime = now;
+        if (now - lastFrameTime >= scanIntervalMs) {
+          lastFrameTime = now;
 
           if (!canvasRef.current) {
             canvasRef.current = document.createElement("canvas");
@@ -370,7 +416,7 @@ export default function QrScanner() {
           const vh = video.videoHeight;
 
           if (vw > 0 && vh > 0) {
-            // Keep resolution optimal for decoding (downsample 4K feeds to max 1280px for high speed)
+            // Downsample high-res feeds for fast decoding
             const maxDimension = Math.max(vw, vh);
             const scale = maxDimension > 1280 ? 1280 / maxDimension : 1;
             canvas.width = Math.floor(vw * scale);
@@ -380,36 +426,13 @@ export default function QrScanner() {
             if (ctx) {
               ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-              let detectedText: string | null = null;
-
-              // 1. Hardware BarcodeDetector if available
-              if (typeof window !== "undefined" && "BarcodeDetector" in window) {
-                try {
-                  const detector = new (window as any).BarcodeDetector({
-                    formats: ["qr_code"],
-                  });
-                  const barcodes = await detector.detect(canvas);
-                  if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
-                    detectedText = barcodes[0].rawValue;
-                  }
-                } catch {
-                  // Fall back to jsQR
-                }
-              }
-
-              // 2. jsQR (pure JS engine, 100% reliable on all iOS Safari and Android versions)
-              if (!detectedText) {
-                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                const qrResult = jsQR(imageData.data, imageData.width, imageData.height, {
-                  inversionAttempts: "attemptBoth",
-                });
-                if (qrResult && qrResult.data) {
-                  detectedText = qrResult.data;
-                }
-              }
-
-              if (detectedText && !isProcessingRef.current) {
-                handleValidateCode(detectedText);
+              // jsQR — pure JS, works on every browser without exceptions
+              const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+              const qrResult = jsQR(imageData.data, imageData.width, imageData.height, {
+                inversionAttempts: "attemptBoth",
+              });
+              if (qrResult && qrResult.data && !isScanLocked()) {
+                handleValidateCode(qrResult.data);
               }
             }
           }
@@ -430,11 +453,39 @@ export default function QrScanner() {
         animationFrameRef.current = null;
       }
     };
-  }, [isScanning, handleValidateCode]);
+  }, [isScanning, handleValidateCode, isProcessing]);
+
+  // WATCHDOG: Monitor video stream health every 3 seconds
+  // iOS Safari kills camera streams when screen dims, app switches, or after prolonged use
+  useEffect(() => {
+    if (!isScanning) return;
+
+    const watchdogInterval = setInterval(() => {
+      const video = videoRef.current;
+      const stream = streamRef.current;
+
+      if (!stream || !video) return;
+
+      const tracks = stream.getVideoTracks();
+      const trackAlive = tracks.length > 0 && tracks[0].readyState === "live";
+      const videoPlaying = !video.paused && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA;
+
+      if (!trackAlive || !videoPlaying) {
+        console.warn("[Watchdog] Camera stream died — auto-restarting...");
+        setCameraError("La cámara se detuvo. Reiniciando automáticamente...");
+        startCamera(selectedCamera || undefined, facingMode).then(() => {
+          setCameraError(null);
+        });
+      }
+    }, 3000);
+
+    return () => clearInterval(watchdogInterval);
+  }, [isScanning, selectedCamera, facingMode]);
 
   const handleResetForNextScan = () => {
     setScanResult(null);
-    isProcessingRef.current = false;
+    lastScanTimestampRef.current = 0;
+    lastScannedCodeRef.current = "";
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -510,6 +561,10 @@ export default function QrScanner() {
 
     return () => {
       stopCamera();
+      // Clean up AudioContext
+      if (audioCtxRef.current && audioCtxRef.current.state !== "closed") {
+        audioCtxRef.current.close().catch(() => {});
+      }
     };
   }, []);
 
@@ -942,15 +997,20 @@ export default function QrScanner() {
               )}
             </div>
 
-            {/* Reset button for next scan */}
+            {/* Reset button for next scan — also shows auto-resume timer */}
             {scanResult && (
-              <button
-                onClick={handleResetForNextScan}
-                className="w-full mt-4 py-3.5 rounded-xl bg-[#FFE600] hover:bg-[#FFF04D] text-black font-extrabold text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-lg shadow-[#FFE600]/15"
-              >
-                <RefreshCw className="w-4 h-4" />
-                Siguiente Escaneo (Continuar)
-              </button>
+              <div className="mt-4 space-y-2">
+                <button
+                  onClick={handleResetForNextScan}
+                  className="w-full py-3.5 rounded-xl bg-[#FFE600] hover:bg-[#FFF04D] text-black font-extrabold text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-lg shadow-[#FFE600]/15"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Siguiente Escaneo (Continuar)
+                </button>
+                <p className="text-[10px] text-center text-[#64748B]">
+                  ⏱ El escáner se reanuda automáticamente en unos segundos
+                </p>
+              </div>
             )}
           </div>
 
