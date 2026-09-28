@@ -6,10 +6,14 @@ import { Flame, Shield, QrCode, Ticket, Zap, Music } from "lucide-react";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
+  // Start of today so events happening today remain visible
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+
   const events = await db.event.findMany({
     where: { 
       status: { not: "DRAFT" },
-      date: { gte: new Date() }
+      date: { gte: startOfToday }
     },
     include: {
       tiers: {
@@ -20,7 +24,6 @@ export default async function HomePage() {
   });
 
   const featuredEvents = events.filter((e) => e.featured);
-  const otherEvents = events.filter((e) => !e.featured);
 
   return (
     <div className="space-y-16 relative">
@@ -181,28 +184,36 @@ export default async function HomePage() {
             </h2>
           </div>
           <span className="text-xs text-amber-300/90 font-black uppercase bg-[#181511] border border-[#332B21] px-3 py-1 rounded-full">
-            {otherEvents.length} {otherEvents.length === 1 ? "evento disponible" : "eventos disponibles"}
+            {events.length} {events.length === 1 ? "evento disponible" : "eventos disponibles"}
           </span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {otherEvents.map((evt) => (
-            <EventCard
-              key={evt.id}
-              id={evt.id}
-              slug={evt.slug}
-              title={evt.title}
-              subtitle={evt.subtitle}
-              date={evt.date}
-              venue={evt.venue}
-              city={evt.city}
-              coverImage={evt.coverImage}
-              featured={evt.featured}
-              minPrice={evt.tiers[0]?.price || 0}
-              status={evt.status}
-            />
-          ))}
-        </div>
+        {events.length === 0 ? (
+          <div className="text-center py-16 px-4 bg-[#15130F] border border-[#2E2820] rounded-2xl max-w-xl mx-auto space-y-3">
+            <Ticket className="w-10 h-10 text-amber-400/60 mx-auto" />
+            <h3 className="text-lg font-bold text-[#FAF6EE]">No hay eventos programados por el momento</h3>
+            <p className="text-sm text-[#8F8270]">Estamos preparando nuevas fechas y recitales. ¡Volvé a consultar pronto!</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {events.map((evt) => (
+              <EventCard
+                key={evt.id}
+                id={evt.id}
+                slug={evt.slug}
+                title={evt.title}
+                subtitle={evt.subtitle}
+                date={evt.date}
+                venue={evt.venue}
+                city={evt.city}
+                coverImage={evt.coverImage}
+                featured={evt.featured}
+                minPrice={evt.tiers[0]?.price || 0}
+                status={evt.status}
+              />
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );
