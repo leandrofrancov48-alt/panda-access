@@ -220,6 +220,9 @@ export default function QrScanner() {
     }
   }, [soundEnabled]);
 
+  // Flag to suppress watchdog during intentional camera switches
+  const isSwitchingCameraRef = useRef<boolean>(false);
+
   const stopCamera = () => {
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
@@ -239,58 +242,117 @@ export default function QrScanner() {
   const startCamera = async (cameraId?: string, preferredFacing?: "environment" | "user") => {
     try {
       setCameraError(null);
-      stopCamera();
+      isSwitchingCameraRef.current = true;
 
-      // Small pause for Safari WebKit to release camera lock
-      await new Promise((resolve) => setTimeout(resolve, 120));
+      // Stop existing stream cleanly
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+      }
+      if (videoRef.current) {
+        videoRef.current.srcObject = null;
+      }
+
+      // iOS Safari requires a moment to release hardware lock on the previous sensor
+      await new Promise((resolve) => setTimeout(resolve, 250));
 
       const activeFacing = preferredFacing || facingMode;
       const targetCameraId = cameraId !== undefined ? cameraId : selectedCamera;
-      const hasSpecificCamera = Boolean(targetCameraId && targetCameraId !== "");
 
-      let videoConstraint: MediaTrackConstraints;
-      if (hasSpecificCamera) {
-        videoConstraint = { deviceId: { exact: targetCameraId } };
-      } else {
-        videoConstraint = {
-          facingMode: { ideal: activeFacing },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        };
+      let stream: MediaStream | null = null;
+
+      // Strategy 1: If a specific cameraId was requested, try with ideal deviceId (won't crash on iOS if ID changed)
+      if (targetCameraId) {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            audio: false,
+            video: {
+              deviceId: { ideal: targetCameraId },
+            },
+          });
+        } catch (e1) {
+          console.warn("Failed getUserMedia with ideal deviceId:", e1);
+        }
       }
 
-      let stream: MediaStream;
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: false,
-          video: videoConstraint,
-        });
-      } catch (overconstrainedErr) {
-        // Fallback to minimal constraints if specific resolution is rejected by device
-        console.warn("Overconstrained, falling back to simple facingMode:", overconstrainedErr);
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: false,
-          video: hasSpecificCamera ? { deviceId: targetCameraId } : { facingMode: activeFacing },
-        });
+      // Strategy 2: If no stream yet, use facingMode: { ideal: activeFacing }
+      // NOTE: DO NOT specify width/height here! On iOS portrait, width/height can bias Safari to pick front camera instead of rear.
+      if (!stream) {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            audio: false,
+            video: {
+              facingMode: { ideal: activeFacing },
+            },
+          });
+        } catch (e2) {
+          console.warn("Failed with facingMode ideal:", e2);
+          // Fallback: direct string facingMode
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({
+              audio: false,
+              video: {
+                facingMode: activeFacing,
+              },
+            });
+          } catch (e3) {
+            console.warn("Failed with direct facingMode:", e3);
+            // Last resort: any video device
+            stream = await navigator.mediaDevices.getUserMedia({
+              audio: false,
+              video: true,
+            });
+          }
+        }
+      }
+
+      if (!stream) {
+        throw new Error("No se pudo obtener acceso al video de la cámara.");
       }
 
       streamRef.current = stream;
 
       if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        // iOS requires play() after srcObject assignment
-        try {
-          await videoRef.current.play();
-        } catch (playErr) {
-          console.warn("Video play error (might need touch):", playErr);
+        const video = videoRef.current;
+        // Critical for iOS Safari: must set muted property directly on DOM element
+        video.muted = true;
+        video.defaultMuted = true;
+        video.setAttribute("playsinline", "true");
+        video.setAttribute("webkit-playsinline", "true");
+        video.srcObject = stream;
+
+        // Start playback with fallback on loadedmetadata
+        const playPromise = video.play();
+        if (playPromise !== undefined) {
+          playPromise.catch((err) => {
+            console.warn("video.play() failed initially, waiting for onloadedmetadata:", err);
+            video.onloadedmetadata = () => {
+              video.play().catch((err2) => {
+                console.warn("video.play() on metadata also failed:", err2);
+              });
+            };
+          });
         }
       }
 
       setIsScanning(true);
 
-      // Check capabilities for continuous autofocus and zoom
+      // Verify track settings to update state and zoom capabilities
       const track = stream.getVideoTracks()[0];
       if (track) {
+        const settings = track.getSettings?.();
+        if (settings && settings.facingMode) {
+          setFacingMode(settings.facingMode as "environment" | "user");
+        }
+        if (settings && settings.deviceId) {
+          setSelectedCamera(settings.deviceId);
+        }
+
+        // Set continuous autofocus if supported
         const capabilities = (track as any).getCapabilities ? (track as any).getCapabilities() : null;
         if (capabilities) {
           if (capabilities.focusMode && capabilities.focusMode.includes("continuous")) {
@@ -307,7 +369,7 @@ export default function QrScanner() {
         }
       }
 
-      // Enumerate cameras for manual dropdown selection
+      // Enumerate cameras so the user can choose from all available lenses
       try {
         const devices = await navigator.mediaDevices.enumerateDevices();
         const videoDevices = devices
@@ -327,14 +389,21 @@ export default function QrScanner() {
       const errMsg = err instanceof Error ? err.message : String(err);
       if (errMsg.includes("NotAllowedError") || errMsg.includes("Permission")) {
         setCameraError(
-          "Permiso de cámara denegado. Para escanear, habilita los permisos de cámara en la configuración de tu navegador."
+          "Permiso de cámara denegado. Para escanear, habilita los permisos de cámara en la configuración de Safari / Navegador."
         );
       } else if (errMsg.includes("NotFoundError") || errMsg.includes("DevicesNotFoundError")) {
         setCameraError("No se encontró ninguna cámara disponible en este dispositivo.");
+      } else if (errMsg.includes("OverconstrainedError") || errMsg.includes("Overconstrained")) {
+        setCameraError("La cámara seleccionada no está disponible. Probá cambiando de cámara.");
       } else {
         setCameraError("No se pudo iniciar la cámara. Verifica que ninguna otra app la esté usando.");
       }
       setIsScanning(false);
+    } finally {
+      // Keep switching flag on for 1.2s to prevent watchdog from immediately interfering
+      setTimeout(() => {
+        isSwitchingCameraRef.current = false;
+      }, 1200);
     }
   };
 
@@ -343,17 +412,16 @@ export default function QrScanner() {
     setFacingMode(nextFacing);
     setSelectedCamera("");
 
-    let matchedDevice: string | undefined = undefined;
+    // Try to find a matching camera device from enumerated cameras
+    let targetId: string | undefined = undefined;
     if (cameras.length > 0) {
       if (nextFacing === "environment") {
+        // Find back camera (prefer regular wide 1x, avoid ultra wide 0.5x if possible)
         const backCam =
           cameras.find((c) => {
             const l = (c.label || "").toLowerCase();
             return (
-              (l.includes("back") ||
-                l.includes("trasera") ||
-                l.includes("rear") ||
-                l.includes("environment")) &&
+              (l.includes("back") || l.includes("trasera") || l.includes("rear")) &&
               !l.includes("ultra") &&
               !l.includes("0.5")
             );
@@ -362,7 +430,7 @@ export default function QrScanner() {
             const l = (c.label || "").toLowerCase();
             return l.includes("back") || l.includes("trasera") || l.includes("rear");
           });
-        if (backCam) matchedDevice = backCam.id;
+        if (backCam) targetId = backCam.id;
       } else {
         const frontCam = cameras.find((c) => {
           const l = (c.label || "").toLowerCase();
@@ -373,13 +441,13 @@ export default function QrScanner() {
             l.includes("selfie")
           );
         });
-        if (frontCam) matchedDevice = frontCam.id;
+        if (frontCam) targetId = frontCam.id;
       }
     }
 
-    if (matchedDevice) {
-      setSelectedCamera(matchedDevice);
-      await startCamera(matchedDevice, nextFacing);
+    if (targetId) {
+      setSelectedCamera(targetId);
+      await startCamera(targetId, nextFacing);
     } else {
       await startCamera(undefined, nextFacing);
     }
@@ -455,29 +523,54 @@ export default function QrScanner() {
     };
   }, [isScanning, handleValidateCode, isProcessing]);
 
-  // WATCHDOG: Monitor video stream health every 3 seconds
+  // WATCHDOG: Monitor video stream health
   // iOS Safari kills camera streams when screen dims, app switches, or after prolonged use
   useEffect(() => {
     if (!isScanning) return;
 
+    let deadCounter = 0;
+
     const watchdogInterval = setInterval(() => {
+      // Don't interfere during intentional camera switches
+      if (isSwitchingCameraRef.current) return;
+
       const video = videoRef.current;
       const stream = streamRef.current;
 
       if (!stream || !video) return;
 
       const tracks = stream.getVideoTracks();
-      const trackAlive = tracks.length > 0 && tracks[0].readyState === "live";
-      const videoPlaying = !video.paused && video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA;
+      const trackDead = tracks.length === 0 || tracks[0].readyState === "ended";
 
-      if (!trackAlive || !videoPlaying) {
-        console.warn("[Watchdog] Camera stream died — auto-restarting...");
+      // If the track explicitly ended (iOS hardware killed the track)
+      if (trackDead) {
+        console.warn("[Watchdog] Video track ended — auto-restarting camera...");
         setCameraError("La cámara se detuvo. Reiniciando automáticamente...");
         startCamera(selectedCamera || undefined, facingMode).then(() => {
           setCameraError(null);
         });
+        return;
       }
-    }, 3000);
+
+      // If video is paused by iOS (e.g. user briefly locked screen or switched tabs)
+      if (video.paused) {
+        console.warn("[Watchdog] Video paused — attempting resume...");
+        video.play().catch(() => {});
+      }
+
+      // Check if video is stalled
+      if (video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+        deadCounter++;
+        if (deadCounter >= 3) {
+          // 3 consecutive checks (15 seconds) stalled
+          deadCounter = 0;
+          console.warn("[Watchdog] Video feed stalled for 15s — restarting camera...");
+          startCamera(selectedCamera || undefined, facingMode);
+        }
+      } else {
+        deadCounter = 0;
+      }
+    }, 5000);
 
     return () => clearInterval(watchdogInterval);
   }, [isScanning, selectedCamera, facingMode]);
@@ -709,10 +802,16 @@ export default function QrScanner() {
                   type="button"
                   onClick={handleToggleCamera}
                   className="px-3 py-1.5 rounded-lg bg-[#181C2E] border border-[#283250] text-gray-300 hover:text-white text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
-                  title="Cambiar entre cámara trasera y frontal"
+                  title={
+                    facingMode === "environment"
+                      ? "Actualmente cámara trasera. Clic para cambiar a frontal."
+                      : "Actualmente cámara frontal. Clic para cambiar a trasera."
+                  }
                 >
                   <FlipHorizontal className="w-3.5 h-3.5 text-[#FFE600]" />
-                  <span className="text-[11px] font-bold">{facingMode === "environment" ? "Trasera" : "Frontal"}</span>
+                  <span className="text-[11px] font-bold">
+                    {facingMode === "environment" ? "📷 Trasera" : "🤳 Frontal"}
+                  </span>
                 </button>
               </div>
             </div>
