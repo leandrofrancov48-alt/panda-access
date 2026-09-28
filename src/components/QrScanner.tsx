@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from "html5-qrcode";
+import jsQR from "jsqr";
 import {
   Camera,
   CheckCircle2,
@@ -60,18 +60,19 @@ export default function QrScanner() {
   const [zoomLevel, setZoomLevel] = useState<number>(1);
   const [supportsZoom, setSupportsZoom] = useState<boolean>(false);
 
-  const scannerRef = useRef<Html5Qrcode | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const isProcessingRef = useRef<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const nativeCameraInputRef = useRef<HTMLInputElement>(null);
-  const readerElementId = "qr-reader-viewport";
 
+  // Apply optical or digital zoom via standard WebRTC track constraints
   const applyZoom = async (zoom: number) => {
     try {
-      const videoElement = document.querySelector(`#${readerElementId} video`) as HTMLVideoElement | null;
-      if (videoElement && videoElement.srcObject) {
-        const stream = videoElement.srcObject as MediaStream;
-        const track = stream.getVideoTracks()[0];
+      if (streamRef.current) {
+        const track = streamRef.current.getVideoTracks()[0];
         if (track) {
           const capabilities = (track as any).getCapabilities ? (track as any).getCapabilities() : null;
           if (capabilities && capabilities.zoom) {
@@ -147,15 +148,6 @@ export default function QrScanner() {
     isProcessingRef.current = true;
     setIsProcessing(true);
 
-    // Pause video scanner feed while verifying to avoid duplicate requests
-    if (scannerRef.current && scannerRef.current.isScanning) {
-      try {
-        scannerRef.current.pause(true);
-      } catch (e) {
-        console.warn("Error pausing scanner:", e);
-      }
-    }
-
     try {
       const res = await fetch("/api/scan", {
         method: "POST",
@@ -184,106 +176,104 @@ export default function QrScanner() {
     }
   }, [soundEnabled]);
 
-  const stopCamera = async () => {
-    if (scannerRef.current) {
-      try {
-        if (scannerRef.current.isScanning) {
-          await scannerRef.current.stop();
-        }
-      } catch (err) {
-        console.error("Stop camera error:", err);
-      }
+  const stopCamera = () => {
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
     }
     setIsScanning(false);
+    setSupportsZoom(false);
   };
 
   const startCamera = async (cameraId?: string, preferredFacing?: "environment" | "user") => {
     try {
       setCameraError(null);
+      stopCamera();
 
-      // Stop any existing instance cleanly
-      await stopCamera();
-
-      // Brief delay to allow iOS Safari (WebKit) to fully release previous media stream tracks
-      await new Promise((resolve) => setTimeout(resolve, 150));
-
-      if (!scannerRef.current) {
-        scannerRef.current = new Html5Qrcode(readerElementId, {
-          formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
-          verbose: false,
-        });
-      }
+      // Small pause for Safari WebKit to release camera lock
+      await new Promise((resolve) => setTimeout(resolve, 120));
 
       const activeFacing = preferredFacing || facingMode;
       const targetCameraId = cameraId !== undefined ? cameraId : selectedCamera;
       const hasSpecificCamera = Boolean(targetCameraId && targetCameraId !== "");
 
-      // Full-frame scanning without artificial qrbox cropping ensures instant recognition across all sensors
-      const scanConfig: any = {
-        fps: 15,
-        disableFlip: activeFacing === "environment",
-      };
-
-      let cameraConfig: any;
-
+      let videoConstraint: MediaTrackConstraints;
       if (hasSpecificCamera) {
-        cameraConfig = targetCameraId;
-      } else if (activeFacing === "environment") {
-        // If devices are already enumerated, find the primary 1x back camera (not ultra-wide)
-        const mainBack = cameras.find((c) => {
-          const l = (c.label || "").toLowerCase();
-          return (
-            (l.includes("back") || l.includes("trasera") || l.includes("rear")) &&
-            !l.includes("ultra") &&
-            !l.includes("0.5") &&
-            !l.includes("telephoto")
-          );
-        });
-        cameraConfig = mainBack ? mainBack.id : { facingMode: "environment" };
+        videoConstraint = { deviceId: { exact: targetCameraId } };
       } else {
-        cameraConfig = { facingMode: "user" };
+        videoConstraint = {
+          facingMode: { ideal: activeFacing },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        };
       }
 
-      await scannerRef.current.start(
-        cameraConfig,
-        scanConfig,
-        (decodedText) => {
-          handleValidateCode(decodedText);
-        },
-        () => {
-          // Frame evaluation - normal when QR is not yet aligned
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: videoConstraint,
+        });
+      } catch (overconstrainedErr) {
+        // Fallback to minimal constraints if specific resolution is rejected by device
+        console.warn("Overconstrained, falling back to simple facingMode:", overconstrainedErr);
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: hasSpecificCamera ? { deviceId: targetCameraId } : { facingMode: activeFacing },
+        });
+      }
+
+      streamRef.current = stream;
+
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        // iOS requires play() after srcObject assignment
+        try {
+          await videoRef.current.play();
+        } catch (playErr) {
+          console.warn("Video play error (might need touch):", playErr);
         }
-      );
+      }
 
       setIsScanning(true);
 
-      // Apply autofocus and detect zoom support on mobile video track
-      try {
-        const videoElement = document.querySelector(`#${readerElementId} video`) as HTMLVideoElement | null;
-        if (videoElement && videoElement.srcObject) {
-          const stream = videoElement.srcObject as MediaStream;
-          const track = stream.getVideoTracks()[0];
-          if (track) {
-            const capabilities = (track as any).getCapabilities ? (track as any).getCapabilities() : null;
-            if (capabilities) {
-              if (capabilities.focusMode && capabilities.focusMode.includes("continuous")) {
-                await (track as any).applyConstraints({ advanced: [{ focusMode: "continuous" }] });
-              }
-              if (capabilities.zoom) {
-                setSupportsZoom(true);
-              }
+      // Check capabilities for continuous autofocus and zoom
+      const track = stream.getVideoTracks()[0];
+      if (track) {
+        const capabilities = (track as any).getCapabilities ? (track as any).getCapabilities() : null;
+        if (capabilities) {
+          if (capabilities.focusMode && capabilities.focusMode.includes("continuous")) {
+            try {
+              await (track as any).applyConstraints({ advanced: [{ focusMode: "continuous" }] });
+            } catch {
+              // Ignore focus error
             }
           }
+          if (capabilities.zoom) {
+            setSupportsZoom(true);
+            setZoomLevel(1);
+          }
         }
-      } catch (e) {
-        console.warn("Could not apply camera track optimizations:", e);
       }
 
-      // Once permission is granted, enumerate actual cameras to show options
+      // Enumerate cameras for manual dropdown selection
       try {
-        const devices = await Html5Qrcode.getCameras();
-        if (devices && devices.length > 0) {
-          setCameras(devices);
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices
+          .filter((d) => d.kind === "videoinput")
+          .map((d, index) => ({
+            id: d.deviceId,
+            label: d.label || `Cámara ${index + 1}`,
+          }));
+        if (videoDevices.length > 0) {
+          setCameras(videoDevices);
         }
       } catch (e) {
         console.warn("Could not enumerate cameras:", e);
@@ -309,7 +299,6 @@ export default function QrScanner() {
     setFacingMode(nextFacing);
     setSelectedCamera("");
 
-    // If cameras were already enumerated on this device, look for the best matching device
     let matchedDevice: string | undefined = undefined;
     if (cameras.length > 0) {
       if (nextFacing === "environment") {
@@ -321,7 +310,8 @@ export default function QrScanner() {
                 l.includes("trasera") ||
                 l.includes("rear") ||
                 l.includes("environment")) &&
-              !l.includes("ultra")
+              !l.includes("ultra") &&
+              !l.includes("0.5")
             );
           }) ||
           cameras.find((c) => {
@@ -351,16 +341,100 @@ export default function QrScanner() {
     }
   };
 
+  // Continuous scanning loop using jsQR + native BarcodeDetector fallback
+  useEffect(() => {
+    if (!isScanning) return;
+
+    let isLoopRunning = true;
+    let lastScanTime = 0;
+    const scanIntervalMs = 90; // Scans ~11 times per second for instant detection and low CPU/battery consumption
+
+    const scanFrame = async () => {
+      if (!isLoopRunning) return;
+
+      const video = videoRef.current;
+      if (
+        video &&
+        video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
+        !isProcessingRef.current
+      ) {
+        const now = Date.now();
+        if (now - lastScanTime >= scanIntervalMs) {
+          lastScanTime = now;
+
+          if (!canvasRef.current) {
+            canvasRef.current = document.createElement("canvas");
+          }
+          const canvas = canvasRef.current;
+          const vw = video.videoWidth;
+          const vh = video.videoHeight;
+
+          if (vw > 0 && vh > 0) {
+            // Keep resolution optimal for decoding (downsample 4K feeds to max 1280px for high speed)
+            const maxDimension = Math.max(vw, vh);
+            const scale = maxDimension > 1280 ? 1280 / maxDimension : 1;
+            canvas.width = Math.floor(vw * scale);
+            canvas.height = Math.floor(vh * scale);
+
+            const ctx = canvas.getContext("2d", { willReadFrequently: true });
+            if (ctx) {
+              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+              let detectedText: string | null = null;
+
+              // 1. Hardware BarcodeDetector if available
+              if (typeof window !== "undefined" && "BarcodeDetector" in window) {
+                try {
+                  const detector = new (window as any).BarcodeDetector({
+                    formats: ["qr_code"],
+                  });
+                  const barcodes = await detector.detect(canvas);
+                  if (barcodes && barcodes.length > 0 && barcodes[0].rawValue) {
+                    detectedText = barcodes[0].rawValue;
+                  }
+                } catch {
+                  // Fall back to jsQR
+                }
+              }
+
+              // 2. jsQR (pure JS engine, 100% reliable on all iOS Safari and Android versions)
+              if (!detectedText) {
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const qrResult = jsQR(imageData.data, imageData.width, imageData.height, {
+                  inversionAttempts: "attemptBoth",
+                });
+                if (qrResult && qrResult.data) {
+                  detectedText = qrResult.data;
+                }
+              }
+
+              if (detectedText && !isProcessingRef.current) {
+                handleValidateCode(detectedText);
+              }
+            }
+          }
+        }
+      }
+
+      if (isLoopRunning) {
+        animationFrameRef.current = requestAnimationFrame(scanFrame);
+      }
+    };
+
+    animationFrameRef.current = requestAnimationFrame(scanFrame);
+
+    return () => {
+      isLoopRunning = false;
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+    };
+  }, [isScanning, handleValidateCode]);
+
   const handleResetForNextScan = () => {
     setScanResult(null);
     isProcessingRef.current = false;
-    if (scannerRef.current && scannerRef.current.isScanning) {
-      try {
-        scannerRef.current.resume();
-      } catch (e) {
-        console.warn("Resume error:", e);
-      }
-    }
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -371,29 +445,69 @@ export default function QrScanner() {
     setIsProcessing(true);
 
     try {
-      if (!scannerRef.current) {
-        scannerRef.current = new Html5Qrcode(readerElementId, {
-          formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
-          verbose: false,
-        });
-      }
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
 
-      const decodedText = await scannerRef.current.scanFile(file, false);
-      handleValidateCode(decodedText);
+      img.onload = () => {
+        try {
+          const canvas = document.createElement("canvas");
+          canvas.width = img.naturalWidth || img.width;
+          canvas.height = img.naturalHeight || img.height;
+          const ctx = canvas.getContext("2d", { willReadFrequently: true });
+          if (!ctx) throw new Error("Could not get 2D context");
+
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+          const qrResult = jsQR(imageData.data, imageData.width, imageData.height, {
+            inversionAttempts: "attemptBoth",
+          });
+
+          if (qrResult && qrResult.data) {
+            handleValidateCode(qrResult.data);
+          } else {
+            setScanResult({
+              status: "INVALID",
+              message: "No se encontró ningún código QR legible en la foto. Intenta con mejor iluminación.",
+            });
+            playSound("INVALID");
+          }
+        } catch (err) {
+          console.warn("Decode image error:", err);
+          setScanResult({
+            status: "ERROR",
+            message: "Error al procesar la imagen del QR.",
+          });
+          playSound("INVALID");
+        } finally {
+          URL.revokeObjectURL(objectUrl);
+          setIsProcessing(false);
+        }
+      };
+
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        setIsProcessing(false);
+        setCameraError("No se pudo cargar la imagen seleccionada.");
+      };
+
+      img.src = objectUrl;
     } catch (err) {
       console.warn("File scan error:", err);
       setCameraError(
-        "No se pudo detectar un código QR claro en la imagen. Prueba subiendo una captura con buena iluminación o mayor nitidez."
+        "No se pudo detectar un código QR claro en la imagen. Prueba con mejor iluminación o mayor nitidez."
       );
       setIsProcessing(false);
     } finally {
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      if (nativeCameraInputRef.current) nativeCameraInputRef.current.value = "";
     }
   };
 
   useEffect(() => {
+    // Start camera automatically on mount
+    startCamera();
+
     return () => {
       stopCamera();
     };
@@ -548,9 +662,15 @@ export default function QrScanner() {
               </div>
             </div>
 
-            {/* Viewport for html5-qrcode */}
+            {/* Native HTML5 Video Viewport */}
             <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-black border-2 border-[#1E253A] flex items-center justify-center">
-              <div id={readerElementId} className="w-full h-full" />
+              <video
+                ref={videoRef}
+                playsInline
+                autoPlay
+                muted
+                className="w-full h-full object-cover"
+              />
 
               {!isScanning && (
                 <div className="absolute inset-0 bg-[#07080C]/90 flex flex-col items-center justify-center p-6 text-center space-y-4 z-10">
@@ -755,25 +875,19 @@ export default function QrScanner() {
                   <div className="bg-[#141827] rounded-xl p-4 border border-[#22283D] space-y-2 text-xs">
                     <div className="flex justify-between">
                       <span className="text-[#64748B]">Sector / Tanda:</span>
-                      <span className="font-bold text-[#38BDF8]">
+                      <span className="font-bold text-white">
                         {scanResult.ticket?.tier.name}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-[#64748B]">Evento:</span>
-                      <span className="font-semibold text-white truncate max-w-[180px]">
+                      <span className="font-bold text-white text-right truncate max-w-[200px]">
                         {scanResult.event?.title}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-[#64748B]">Código Entrada:</span>
-                      <span className="font-mono text-gray-400">
-                        {scanResult.ticket?.ticketCode}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
                       <span className="text-[#64748B]">Orden:</span>
-                      <span className="font-mono text-gray-300">
+                      <span className="font-mono text-gray-400">
                         #{scanResult.ticket?.order.orderNumber}
                       </span>
                     </div>
@@ -835,18 +949,53 @@ export default function QrScanner() {
                 className="w-full mt-4 py-3.5 rounded-xl bg-[#FFE600] hover:bg-[#FFF04D] text-black font-extrabold text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer shadow-lg shadow-[#FFE600]/15"
               >
                 <RefreshCw className="w-4 h-4" />
-                Continuar Escaneando (Siguiente Asistente)
+                Siguiente Escaneo (Continuar)
               </button>
             )}
           </div>
 
-          {/* Quick instructions */}
-          <div className="bg-[#0B0D14] border border-[#161B2B] rounded-xl p-4 text-xs text-[#64748B] space-y-1.5">
-            <p className="font-bold text-gray-400">💡 Instrucciones para el personal de puerta:</p>
-            <p>• Pide al asistente que suba el brillo de su celular.</p>
-            <p>• Valida siempre el nombre y DNI con su documento de identidad.</p>
-            <p>• Si el QR fue reutilizado, el sistema te avisará al instante con alarma sonora.</p>
-          </div>
+          {/* Recent Scans Mini Feed */}
+          {recentScans.length > 0 && (
+            <div className="bg-[#0F121C] border border-[#1E253A] rounded-2xl p-4">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-[#64748B] block mb-3">
+                Últimos Accesos Verificados
+              </span>
+              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                {recentScans.map((scan, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between p-2 rounded-lg bg-[#141827] text-xs border border-[#1C2236]"
+                  >
+                    <div className="flex items-center gap-2 truncate">
+                      {scan.status === "VALID" ? (
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                      ) : scan.status === "ALREADY_USED" ? (
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      ) : (
+                        <XCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                      )}
+                      <span className="text-white font-medium truncate">
+                        {scan.ticket
+                          ? `${scan.ticket.attendeeName} ${scan.ticket.attendeeLastName}`
+                          : "Código no reconocido"}
+                      </span>
+                    </div>
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                        scan.status === "VALID"
+                          ? "bg-emerald-500/20 text-emerald-400"
+                          : scan.status === "ALREADY_USED"
+                          ? "bg-amber-500/20 text-amber-400"
+                          : "bg-red-500/20 text-red-400"
+                      }`}
+                    >
+                      {scan.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
