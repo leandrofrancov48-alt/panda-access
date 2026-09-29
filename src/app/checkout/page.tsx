@@ -36,6 +36,7 @@ interface EventData {
   date: string;
   venue: string;
   city: string;
+  ageRestriction?: string | null;
   tiers: TierDetail[];
 }
 
@@ -69,6 +70,7 @@ function CheckoutContent() {
   const [buyerEmail, setBuyerEmail] = useState("");
   const [buyerPhone, setBuyerPhone] = useState("");
   const [buyerDni, setBuyerDni] = useState("");
+  const [buyerBirthDate, setBuyerBirthDate] = useState("");
   const [currentUser, setCurrentUser] = useState<{
     id: string;
     name: string;
@@ -171,6 +173,9 @@ function CheckoutContent() {
               setBuyerEmail((prev) => prev || authData.user.email || "");
               setBuyerPhone((prev) => prev || authData.user.phone || "");
               setBuyerDni((prev) => prev || authData.user.dni || "");
+              if (authData.user.birthDate) {
+                setBuyerBirthDate((prev) => prev || authData.user.birthDate.split("T")[0]);
+              }
             }
           }
         } catch {
@@ -229,8 +234,26 @@ function CheckoutContent() {
     setErrorMessage(null);
 
     // Validate inputs
-    if (!buyerName || !buyerLastName || !buyerEmail || !buyerDni) {
-      setErrorMessage("Por favor completá todos los datos del comprador.");
+    if (!buyerName || !buyerLastName || !buyerEmail || !buyerDni || !buyerBirthDate) {
+      setErrorMessage("Por favor completá todos los datos del comprador, incluyendo la fecha de nacimiento.");
+      return;
+    }
+
+    const birthDateObj = new Date(buyerBirthDate);
+    if (isNaN(birthDateObj.getTime()) || birthDateObj > new Date()) {
+      setErrorMessage("Por favor ingresá una fecha de nacimiento válida.");
+      return;
+    }
+
+    const today = new Date();
+    let calculatedAge = today.getFullYear() - birthDateObj.getFullYear();
+    const monthDiff = today.getMonth() - birthDateObj.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDateObj.getDate())) {
+      calculatedAge--;
+    }
+
+    if (calculatedAge < 18) {
+      setErrorMessage("Debés ser mayor de 18 años para comprar entradas para este evento.");
       return;
     }
 
@@ -254,6 +277,7 @@ function CheckoutContent() {
         buyerEmail,
         buyerPhone,
         buyerDni,
+        buyerBirthDate,
         paymentMethod: total === 0 ? "FREE" : paymentMethod,
         attendees: attendees.map((a) => ({
           tierId: a.tierId,
@@ -491,6 +515,30 @@ function CheckoutContent() {
                   placeholder="Ej: 11 5544 3322"
                   className="w-full px-4 py-2.5 bg-[#161B2B] border border-[#242D45] rounded-xl text-white text-sm focus:border-[#FFE600] outline-none"
                 />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-gray-300 block mb-1.5 flex items-center justify-between">
+                  <span>Fecha de Nacimiento *</span>
+                  <span className="text-[10px] text-amber-400 font-semibold">+18 años</span>
+                </label>
+                <input
+                  type="date"
+                  required
+                  value={buyerBirthDate}
+                  onChange={(e) => setBuyerBirthDate(e.target.value)}
+                  max={new Date().toISOString().split("T")[0]}
+                  className="w-full px-4 py-2.5 bg-[#161B2B] border border-[#242D45] rounded-xl text-white text-sm focus:border-[#FFE600] outline-none [color-scheme:dark]"
+                />
+              </div>
+
+              <div className="flex flex-col justify-end">
+                <div className="p-2.5 rounded-xl bg-[#161B2B]/70 border border-[#242D45] flex items-center gap-2.5 text-xs text-[#94A3B8]">
+                  <span className="text-amber-400 text-sm shrink-0">🔒</span>
+                  <span className="text-[11px] leading-snug">
+                    Requisito obligatorio para el control de edad en el ingreso al evento ({event.ageRestriction || "+18 años"}).
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -781,32 +829,32 @@ function CheckoutContent() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className={`w-full py-4 rounded-xl disabled:opacity-50 text-black font-black text-base uppercase tracking-wider transition-all duration-200 shadow-xl flex items-center justify-center gap-2 cursor-pointer ${
+              className={`w-full py-4 px-6 rounded-2xl disabled:opacity-50 text-black font-black text-sm sm:text-base uppercase tracking-wider transition-all duration-300 shadow-xl flex items-center justify-center cursor-pointer group hover:scale-[1.02] active:scale-[0.98] ${
                 total === 0
-                  ? "bg-emerald-500 hover:bg-emerald-400 shadow-emerald-500/20"
-                  : "bg-[#FFE600] hover:bg-[#FFF04D] shadow-[#FFE600]/20"
+                  ? "bg-gradient-to-r from-emerald-400 via-emerald-500 to-emerald-400 hover:brightness-110 shadow-[0_0_30px_rgba(16,185,129,0.35)] border border-emerald-300/50"
+                  : "bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 hover:brightness-110 shadow-[0_0_30px_rgba(245,158,11,0.35)] border border-amber-200/60"
               }`}
             >
               {isSubmitting ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  {paymentMethod === "MERCADOPAGO" ? "Conectando con Mercado Pago..." : "Emitiendo Entradas..."}
-                </>
+                <div className="flex items-center justify-center gap-2.5">
+                  <Loader2 className="w-5 h-5 animate-spin shrink-0" />
+                  <span>{paymentMethod === "MERCADOPAGO" ? "Conectando con Mercado Pago..." : "Emitiendo Entradas..."}</span>
+                </div>
               ) : total === 0 ? (
-                <>
-                  <CheckCircle2 className="w-5 h-5" />
-                  Confirmar Registro y Recibir Entradas
-                </>
+                <div className="flex items-center justify-center gap-2.5 text-center">
+                  <Ticket className="w-5 h-5 shrink-0 transition-transform duration-300 group-hover:rotate-12" />
+                  <span>Confirmar Registro y Recibir Entradas</span>
+                </div>
               ) : paymentMethod === "MERCADOPAGO" ? (
-                <>
-                  <CheckCircle2 className="w-5 h-5" />
-                  Pagar con Mercado Pago
-                </>
+                <div className="flex items-center justify-center gap-2.5 text-center">
+                  <CreditCard className="w-5 h-5 shrink-0" />
+                  <span>Pagar con Mercado Pago</span>
+                </div>
               ) : (
-                <>
-                  <CheckCircle2 className="w-5 h-5" />
-                  Pagar y Emitir Entradas
-                </>
+                <div className="flex items-center justify-center gap-2.5 text-center">
+                  <Ticket className="w-5 h-5 shrink-0 transition-transform duration-300 group-hover:rotate-12" />
+                  <span>Pagar y Emitir Entradas</span>
+                </div>
               )}
             </button>
 

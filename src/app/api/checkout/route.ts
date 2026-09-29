@@ -19,6 +19,7 @@ interface CheckoutBody {
   buyerEmail: string;
   buyerPhone: string;
   buyerDni: string;
+  buyerBirthDate?: string;
   paymentMethod?: string;
   attendees: AttendeeInfo[];
 }
@@ -33,13 +34,36 @@ export async function POST(req: Request) {
       buyerEmail,
       buyerPhone,
       buyerDni,
+      buyerBirthDate,
       paymentMethod = "SIMULATED",
       attendees,
     } = body;
 
-    if (!eventId || !buyerEmail || !buyerDni || !attendees || attendees.length === 0) {
+    if (!eventId || !buyerEmail || !buyerDni || !buyerBirthDate || !attendees || attendees.length === 0) {
       return NextResponse.json(
-        { error: "Faltan datos obligatorios para procesar la compra." },
+        { error: "Faltan datos obligatorios para procesar la compra (incluyendo la fecha de nacimiento)." },
+        { status: 400 }
+      );
+    }
+
+    const birthDateObj = new Date(buyerBirthDate);
+    if (isNaN(birthDateObj.getTime()) || birthDateObj > new Date()) {
+      return NextResponse.json(
+        { error: "La fecha de nacimiento ingresada no es válida." },
+        { status: 400 }
+      );
+    }
+
+    const today = new Date();
+    let calculatedAge = today.getFullYear() - birthDateObj.getFullYear();
+    const monthDiff = today.getMonth() - birthDateObj.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDateObj.getDate())) {
+      calculatedAge--;
+    }
+
+    if (calculatedAge < 18) {
+      return NextResponse.json(
+        { error: "Debés ser mayor de 18 años para comprar entradas para este evento." },
         { status: 400 }
       );
     }
@@ -186,6 +210,7 @@ export async function POST(req: Request) {
           buyerEmail,
           buyerPhone,
           buyerDni,
+          buyerBirthDate: birthDateObj,
           userId: checkoutUserId,
           subtotal,
           serviceFee,
@@ -204,6 +229,14 @@ export async function POST(req: Request) {
           },
         },
       });
+
+      // Synchronize birthDate to registered user if not set
+      if (checkoutUserId) {
+        await tx.user.updateMany({
+          where: { id: checkoutUserId, birthDate: null },
+          data: { birthDate: birthDateObj },
+        });
+      }
 
       return order;
     });

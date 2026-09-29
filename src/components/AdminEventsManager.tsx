@@ -75,6 +75,7 @@ export interface TicketWithOrder {
     buyerLastName: string;
     buyerEmail: string;
     buyerPhone: string;
+    buyerBirthDate?: string | Date | null;
     eventId: string;
     total?: number;
     event: {
@@ -337,6 +338,9 @@ export default function AdminEventsManager({
       "Nombre": t.attendeeName,
       "Apellido": t.attendeeLastName,
       "DNI": t.attendeeDni,
+      "F. Nac. Comprador": t.order.buyerBirthDate
+        ? new Date(t.order.buyerBirthDate).toLocaleDateString("es-AR")
+        : "N/A",
       "Email Comprador": t.order.buyerEmail,
       "Evento": t.order.event.title,
       "Sector / Tanda": t.tier.name,
@@ -356,6 +360,7 @@ export default function AdminEventsManager({
       { wch: 18 }, // Nombre
       { wch: 18 }, // Apellido
       { wch: 12 }, // DNI
+      { wch: 18 }, // F. Nac. Comprador
       { wch: 30 }, // Email Comprador
       { wch: 32 }, // Evento
       { wch: 24 }, // Sector / Tanda
@@ -384,6 +389,7 @@ export default function AdminEventsManager({
       "Asistente Nombre",
       "Asistente Apellido",
       "DNI",
+      "Fecha Nac Comprador",
       "Email Comprador",
       "Evento",
       "Sector",
@@ -398,6 +404,7 @@ export default function AdminEventsManager({
       `"${t.attendeeName}"`,
       `"${t.attendeeLastName}"`,
       `"${t.attendeeDni}"`,
+      t.order.buyerBirthDate ? `"${new Date(t.order.buyerBirthDate).toLocaleDateString("es-AR")}"` : '"N/A"',
       `"${t.order.buyerEmail}"`,
       `"${t.order.event.title.replace(/"/g, '""')}"`,
       `"${t.tier.name}"`,
