@@ -210,7 +210,7 @@ export async function sendTicketConfirmationEmail(data: TicketEmailData): Promis
       ];
 
       await transporter.sendMail({
-        from: process.env.SMTP_FROM || `"Panda Access" <leandrofrancov48@gmail.com>`,
+        from: process.env.SMTP_FROM || `"Panda Access" <lodelpandadj@gmail.com>`,
         to: data.buyerEmail,
         subject: `🎟️ Tus entradas para ${data.eventName} (Orden #${data.orderNumber})`,
         html: emailHtml,
