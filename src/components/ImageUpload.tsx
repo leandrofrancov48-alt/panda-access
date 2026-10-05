@@ -36,12 +36,16 @@ export default function ImageUpload({
 
       const res = await fetch("/api/admin/upload", {
         method: "POST",
+        credentials: "include",
         body: formData,
       });
 
       const data = await res.json();
 
       if (!res.ok) {
+        if (res.status === 401) {
+          throw new Error("Tu sesión de administrador expiró. Por favor recargá la página o iniciá sesión nuevamente en el panel.");
+        }
         throw new Error(data.error || "Error al subir la imagen.");
       }
 

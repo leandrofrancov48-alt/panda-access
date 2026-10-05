@@ -11,7 +11,7 @@ interface RouteParams {
 // y restablece los cupos de las tandas a 0 vendidas para reutilizar el evento semanalmente.
 export async function POST(req: Request, { params }: RouteParams) {
   try {
-    const isAdmin = await isCurrentUserAdmin();
+    const isAdmin = await isCurrentUserAdmin(req);
     if (!isAdmin) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }

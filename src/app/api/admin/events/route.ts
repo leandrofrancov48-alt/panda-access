@@ -4,7 +4,7 @@ import { isCurrentUserAdmin } from "@/lib/auth";
 
 export async function POST(req: Request) {
   try {
-    const isAdmin = await isCurrentUserAdmin();
+    const isAdmin = await isCurrentUserAdmin(req);
     if (!isAdmin) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
     const body = await req.json();

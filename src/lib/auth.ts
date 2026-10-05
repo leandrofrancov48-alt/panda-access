@@ -52,10 +52,10 @@ export function verifySessionToken(
   if (signature.length !== expectedSignature.length) return false;
   if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature))) return false;
 
-  // Max age: 7 days
+  // Max age: 30 days, allow up to 15 minutes clock skew backwards
   const age = Date.now() - parseInt(timestamp, 10);
-  const maxAge = 7 * 24 * 60 * 60 * 1000;
-  return age >= 0 && age < maxAge;
+  const maxAge = 30 * 24 * 60 * 60 * 1000;
+  return age >= -15 * 60 * 1000 && age < maxAge;
 }
 
 /**
@@ -96,24 +96,45 @@ export function validateScannerPassword(password: string): boolean {
 }
 
 /**
- * Checks if current request has a valid admin session (for Server Components)
+ * Checks if current request has a valid admin (or staff) session.
+ * Supports next/headers cookies() as well as raw Request Cookie headers.
  */
-export async function isCurrentUserAdmin(): Promise<boolean> {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(SESSION_COOKIE)?.value;
-  return verifySessionToken(token, "admin");
+export async function isCurrentUserAdmin(req?: Request): Promise<boolean> {
+  let adminToken: string | undefined | null = null;
+  let scannerToken: string | undefined | null = null;
+
+  try {
+    const cookieStore = await cookies();
+    adminToken = cookieStore.get(SESSION_COOKIE)?.value;
+    scannerToken = cookieStore.get(SCANNER_COOKIE)?.value;
+  } catch {
+    // ignore
+  }
+
+  // Fallback to raw Request Cookie header if available
+  if (req && (!adminToken || !scannerToken)) {
+    const cookieHeader = req.headers.get("cookie") || "";
+    if (!adminToken) {
+      const mAdmin = cookieHeader.match(/(?:^|;\s*)panda_admin_session=([^;]*)/);
+      if (mAdmin) adminToken = decodeURIComponent(mAdmin[1]);
+    }
+    if (!scannerToken) {
+      const mScanner = cookieHeader.match(/(?:^|;\s*)panda_scanner_session=([^;]*)/);
+      if (mScanner) scannerToken = decodeURIComponent(mScanner[1]);
+    }
+  }
+
+  if (verifySessionToken(adminToken, "admin")) return true;
+  if (verifySessionToken(scannerToken, "scanner")) return true;
+
+  return false;
 }
 
 /**
  * Checks if current request has a valid scanner or admin session
  */
-export async function isCurrentUserScanner(): Promise<boolean> {
-  const cookieStore = await cookies();
-  const adminToken = cookieStore.get(SESSION_COOKIE)?.value;
-  if (verifySessionToken(adminToken, "admin")) return true;
-
-  const scannerToken = cookieStore.get(SCANNER_COOKIE)?.value;
-  return verifySessionToken(scannerToken, "scanner");
+export async function isCurrentUserScanner(req?: Request): Promise<boolean> {
+  return isCurrentUserAdmin(req);
 }
 
 export { SESSION_COOKIE, SCANNER_COOKIE };

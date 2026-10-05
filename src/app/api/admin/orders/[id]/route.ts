@@ -7,7 +7,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const isAdmin = await isCurrentUserAdmin();
+    const isAdmin = await isCurrentUserAdmin(req);
     if (!isAdmin) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
     const { id } = await params;

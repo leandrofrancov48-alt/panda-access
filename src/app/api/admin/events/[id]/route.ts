@@ -9,7 +9,7 @@ interface RouteParams {
 // GET /api/admin/events/[id] - Obtener evento con sus tandas
 export async function GET(req: Request, { params }: RouteParams) {
   try {
-    const isAdmin = await isCurrentUserAdmin();
+    const isAdmin = await isCurrentUserAdmin(req);
     if (!isAdmin) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
     const { id } = await params;
@@ -48,7 +48,7 @@ export async function GET(req: Request, { params }: RouteParams) {
 // PUT /api/admin/events/[id] - Actualizar evento y sus tandas de entradas
 export async function PUT(req: Request, { params }: RouteParams) {
   try {
-    const isAdmin = await isCurrentUserAdmin();
+    const isAdmin = await isCurrentUserAdmin(req);
     if (!isAdmin) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
     const { id } = await params;
@@ -204,7 +204,7 @@ export async function PUT(req: Request, { params }: RouteParams) {
 // DELETE /api/admin/events/[id] - Eliminar evento y dependencias en cascada
 export async function DELETE(req: Request, { params }: RouteParams) {
   try {
-    const isAdmin = await isCurrentUserAdmin();
+    const isAdmin = await isCurrentUserAdmin(req);
     if (!isAdmin) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
     const { id } = await params;

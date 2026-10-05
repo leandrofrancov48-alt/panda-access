@@ -4,9 +4,9 @@ import { isCurrentUserAdmin } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const isAdmin = await isCurrentUserAdmin();
+    const isAdmin = await isCurrentUserAdmin(req);
     if (!isAdmin) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
     const [events, orders, tickets] = await Promise.all([

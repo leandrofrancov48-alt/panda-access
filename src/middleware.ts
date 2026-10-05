@@ -16,10 +16,10 @@ async function verifyToken(
   if (parts.length !== 2) return false;
   const [timestamp, signature] = parts;
 
-  // Check expiration (7 days)
+  // Check expiration (30 days, allow up to 15 min clock skew backwards)
   const age = Date.now() - parseInt(timestamp, 10);
-  const maxAge = 7 * 24 * 60 * 60 * 1000;
-  if (isNaN(age) || age < 0 || age >= maxAge) return false;
+  const maxAge = 30 * 24 * 60 * 60 * 1000;
+  if (isNaN(age) || age < -15 * 60 * 1000 || age >= maxAge) return false;
 
   // Verify HMAC-SHA256 signature using Web Crypto API
   try {
@@ -60,24 +60,24 @@ export async function middleware(req: NextRequest) {
 
   const adminAuthenticated = await verifyToken(adminToken, "panda-admin");
   const scannerAuthenticated = await verifyToken(scannerToken, "panda-scanner");
-  const canScan = scannerAuthenticated || adminAuthenticated;
+  const canAccessStaff = scannerAuthenticated || adminAuthenticated;
 
   // 1. API: Scan endpoint (accepts either admin or scanner staff)
   if (pathname.startsWith("/api/scan")) {
-    if (!canScan) {
+    if (!canAccessStaff) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
     return NextResponse.next();
   }
 
-  // 2. API: Admin endpoints (strictly requires admin session)
+  // 2. API: Admin endpoints (accepts admin or scanner session)
   const isProtectedAdminApi =
     pathname.startsWith("/api/admin") &&
     pathname !== "/api/admin/login" &&
     pathname !== "/api/admin/logout";
 
   if (isProtectedAdminApi) {
-    if (!adminAuthenticated) {
+    if (!canAccessStaff) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 });
     }
     return NextResponse.next();
@@ -87,14 +87,14 @@ export async function middleware(req: NextRequest) {
   if (pathname.startsWith("/scanner")) {
     // Scanner login page
     if (pathname === "/scanner/login") {
-      if (scannerAuthenticated) {
+      if (canAccessStaff) {
         return NextResponse.redirect(new URL("/scanner", req.url));
       }
       return NextResponse.next();
     }
 
     // Protected /scanner views
-    if (!(scannerAuthenticated || adminAuthenticated)) {
+    if (!canAccessStaff) {
       const loginUrl = new URL("/scanner/login", req.url);
       return NextResponse.redirect(loginUrl);
     }
@@ -110,14 +110,14 @@ export async function middleware(req: NextRequest) {
   if (pathname.startsWith("/panda-control-2026")) {
     // Admin login page
     if (pathname === "/panda-control-2026/login") {
-      if (adminAuthenticated) {
+      if (canAccessStaff) {
         return NextResponse.redirect(new URL("/panda-control-2026", req.url));
       }
       return NextResponse.next();
     }
 
     // Protected admin views
-    if (!adminAuthenticated) {
+    if (!canAccessStaff) {
       const loginUrl = new URL("/panda-control-2026/login", req.url);
       loginUrl.searchParams.set("from", pathname);
       return NextResponse.redirect(loginUrl);
