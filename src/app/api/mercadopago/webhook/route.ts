@@ -118,6 +118,7 @@ export async function POST(req: Request) {
             buyerEmail: order.buyerEmail,
             eventName: order.event.title,
             eventDate: new Date(order.event.date).toLocaleDateString("es-AR", {
+              timeZone: "America/Argentina/Buenos_Aires",
               weekday: "long",
               day: "numeric",
               month: "long",

@@ -733,7 +733,9 @@ export default function AdminEventsManager({
               <p className="text-xs text-[#94A3B8] mt-1">
                 📍 {currentEvent.venue}, {currentEvent.city} • Fecha:{" "}
                 <span suppressHydrationWarning>
-                  {new Date(currentEvent.date).toLocaleDateString("es-AR")}
+                  {new Date(currentEvent.date).toLocaleDateString("es-AR", {
+                    timeZone: "America/Argentina/Buenos_Aires",
+                  })}
                 </span>
               </p>
             )}

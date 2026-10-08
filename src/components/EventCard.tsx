@@ -28,14 +28,23 @@ export default function EventCard({
   status = "PUBLISHED",
 }: EventCardProps) {
   const eventDate = new Date(date);
-  const day = eventDate.getDate();
+  const day = eventDate.toLocaleDateString("es-AR", {
+    timeZone: "America/Argentina/Buenos_Aires",
+    day: "numeric",
+  });
   const month = eventDate
-    .toLocaleDateString("es-AR", { month: "short" })
+    .toLocaleDateString("es-AR", {
+      timeZone: "America/Argentina/Buenos_Aires",
+      month: "short",
+    })
     .toUpperCase()
     .replace(".", "");
-  const hours = eventDate.getHours().toString().padStart(2, "0");
-  const minutes = eventDate.getMinutes().toString().padStart(2, "0");
-  const time = `${hours}:${minutes}`;
+  const time = eventDate.toLocaleTimeString("es-AR", {
+    timeZone: "America/Argentina/Buenos_Aires",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  });
 
   return (
     <Link
@@ -94,6 +103,7 @@ export default function EventCard({
             <Calendar className="w-3.5 h-3.5 text-amber-400/70" />
             <span suppressHydrationWarning>
               {eventDate.toLocaleDateString("es-AR", {
+                timeZone: "America/Argentina/Buenos_Aires",
                 weekday: "short",
                 day: "numeric",
                 month: "long",

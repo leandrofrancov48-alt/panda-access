@@ -6,6 +6,14 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
+function parseEventDate(d: string | Date): Date {
+  if (typeof d !== "string") return new Date(d);
+  if (!d.includes("Z") && !/[+-]\d{2}:?\d{2}$/.test(d)) {
+    return new Date(`${d}-03:00`);
+  }
+  return new Date(d);
+}
+
 // GET /api/admin/events/[id] - Obtener evento con sus tandas
 export async function GET(req: Request, { params }: RouteParams) {
   try {
@@ -115,7 +123,7 @@ export async function PUT(req: Request, { params }: RouteParams) {
           title,
           subtitle: subtitle || null,
           description: description || "",
-          date: new Date(date),
+          date: parseEventDate(date),
           doorsOpenTime: doorsOpenTime || "22:00",
           venue,
           address: address || venue,

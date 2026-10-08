@@ -49,6 +49,7 @@ export default async function EventDetailPage({ params }: Props) {
 
   const eventDate = new Date(event.date);
   const formattedDate = eventDate.toLocaleDateString("es-AR", {
+    timeZone: "America/Argentina/Buenos_Aires",
     weekday: "long",
     day: "numeric",
     month: "long",

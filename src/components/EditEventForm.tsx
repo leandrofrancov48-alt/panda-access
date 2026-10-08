@@ -55,13 +55,24 @@ export default function EditEventForm({ event }: { event: EventDataForEdit }) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Formatear fecha para datetime-local
+  // Formatear fecha para datetime-local en horario de Argentina
   const formatDatetimeForInput = (d: string | Date) => {
     try {
       const dateObj = new Date(d);
-      const tzOffset = dateObj.getTimezoneOffset() * 60000;
-      const localISOTime = new Date(dateObj.getTime() - tzOffset).toISOString().slice(0, 16);
-      return localISOTime;
+      if (isNaN(dateObj.getTime())) return "";
+      const formatter = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Argentina/Buenos_Aires",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+      });
+      const parts = formatter.formatToParts(dateObj);
+      const map: Record<string, string> = {};
+      for (const p of parts) map[p.type] = p.value;
+      return `${map.year}-${map.month}-${map.day}T${map.hour}:${map.minute}`;
     } catch {
       return "";
     }
@@ -177,7 +188,9 @@ export default function EditEventForm({ event }: { event: EventDataForEdit }) {
           title,
           subtitle,
           description,
-          date,
+          date: date.includes("Z") || /[+-]\d{2}:?\d{2}$/.test(date)
+            ? date
+            : `${date}:00-03:00`,
           doorsOpenTime,
           venue,
           address,

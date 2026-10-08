@@ -52,6 +52,7 @@ export default function DigitalTicketCard({
   }, []);
 
   const formattedDate = new Date(eventDate).toLocaleDateString("es-AR", {
+    timeZone: "America/Argentina/Buenos_Aires",
     weekday: "long",
     day: "numeric",
     month: "long",

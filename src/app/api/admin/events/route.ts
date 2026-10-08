@@ -2,6 +2,14 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { isCurrentUserAdmin } from "@/lib/auth";
 
+function parseEventDate(d: string | Date): Date {
+  if (typeof d !== "string") return new Date(d);
+  if (!d.includes("Z") && !/[+-]\d{2}:?\d{2}$/.test(d)) {
+    return new Date(`${d}-03:00`);
+  }
+  return new Date(d);
+}
+
 export async function POST(req: Request) {
   try {
     const isAdmin = await isCurrentUserAdmin(req);
@@ -47,7 +55,7 @@ export async function POST(req: Request) {
         title,
         subtitle,
         description: description || "Gran noche de cumbia en vivo.",
-        date: new Date(date),
+        date: parseEventDate(date),
         doorsOpenTime: doorsOpenTime || "22:00",
         venue,
         address: address || venue,

@@ -223,6 +223,7 @@ export default function ProfilePage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {allTickets.map((t) => {
                 const eventDate = new Date(t.event.date).toLocaleDateString("es-AR", {
+                  timeZone: "America/Argentina/Buenos_Aires",
                   weekday: "short",
                   day: "numeric",
                   month: "short",

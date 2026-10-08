@@ -6,14 +6,13 @@ import { Flame, Shield, QrCode, Ticket, Zap, Music } from "lucide-react";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  // Start of today so events happening today remain visible
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
+  // Keep events from the last 24h visible so ongoing night events / parties don't vanish
+  const cutOffDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
   const events = await db.event.findMany({
     where: { 
       status: { not: "DRAFT" },
-      date: { gte: startOfToday }
+      date: { gte: cutOffDate }
     },
     include: {
       tiers: {

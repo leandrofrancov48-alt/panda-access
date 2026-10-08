@@ -100,7 +100,9 @@ export default function NewEventPage() {
           title,
           subtitle,
           description,
-          date,
+          date: date.includes("Z") || /[+-]\d{2}:?\d{2}$/.test(date)
+            ? date
+            : `${date}:00-03:00`,
           doorsOpenTime,
           venue,
           address,
