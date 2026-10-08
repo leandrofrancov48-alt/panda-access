@@ -286,7 +286,10 @@ export default function AdminEventsManager({
       "Nombre Asistente",
       "Apellido Asistente",
       "DNI Asistente",
+      "WhatsApp / Teléfono",
+      "F. Nac. Comprador",
       "Email Comprador",
+      "Nombre Comprador",
       "Evento",
       "Sector / Tanda",
       "Precio ($)",
@@ -300,14 +303,26 @@ export default function AdminEventsManager({
       t.attendeeName,
       t.attendeeLastName,
       t.attendeeDni,
+      t.order.buyerPhone || "N/A",
+      t.order.buyerBirthDate
+        ? new Date(t.order.buyerBirthDate).toLocaleDateString("es-AR", {
+            timeZone: "America/Argentina/Buenos_Aires",
+          })
+        : "N/A",
       t.order.buyerEmail,
+      `${t.order.buyerName} ${t.order.buyerLastName}`,
       t.order.event.title,
       t.tier.name,
       t.price === 0 ? "GRATIS" : t.price,
       t.ticketCode,
       t.status === "USED" ? "INGRESÓ" : "SIN INGRESAR",
       t.checkedInAt
-        ? `${new Date(t.checkedInAt).getHours().toString().padStart(2, "0")}:${new Date(t.checkedInAt).getMinutes().toString().padStart(2, "0")} hs`
+        ? `${new Date(t.checkedInAt).toLocaleTimeString("es-AR", {
+            timeZone: "America/Argentina/Buenos_Aires",
+            hour: "2-digit",
+            minute: "2-digit",
+            hourCycle: "h23",
+          })} hs`
         : "N/A",
     ]);
 
@@ -338,17 +353,26 @@ export default function AdminEventsManager({
       "Nombre": t.attendeeName,
       "Apellido": t.attendeeLastName,
       "DNI": t.attendeeDni,
+      "WhatsApp / Teléfono": t.order.buyerPhone || "N/A",
       "F. Nac. Comprador": t.order.buyerBirthDate
-        ? new Date(t.order.buyerBirthDate).toLocaleDateString("es-AR")
+        ? new Date(t.order.buyerBirthDate).toLocaleDateString("es-AR", {
+            timeZone: "America/Argentina/Buenos_Aires",
+          })
         : "N/A",
       "Email Comprador": t.order.buyerEmail,
+      "Nombre Comprador": `${t.order.buyerName} ${t.order.buyerLastName}`,
       "Evento": t.order.event.title,
       "Sector / Tanda": t.tier.name,
       "Precio ($)": t.price === 0 ? "GRATIS" : t.price,
       "Código QR": t.ticketCode,
       "Estado Ingreso": t.status === "USED" ? "INGRESÓ" : "SIN INGRESAR",
       "Hora Ingreso": t.checkedInAt
-        ? `${new Date(t.checkedInAt).getHours().toString().padStart(2, "0")}:${new Date(t.checkedInAt).getMinutes().toString().padStart(2, "0")} hs`
+        ? `${new Date(t.checkedInAt).toLocaleTimeString("es-AR", {
+            timeZone: "America/Argentina/Buenos_Aires",
+            hour: "2-digit",
+            minute: "2-digit",
+            hourCycle: "h23",
+          })} hs`
         : "N/A",
     }));
 
@@ -360,8 +384,10 @@ export default function AdminEventsManager({
       { wch: 18 }, // Nombre
       { wch: 18 }, // Apellido
       { wch: 12 }, // DNI
+      { wch: 20 }, // WhatsApp / Teléfono
       { wch: 18 }, // F. Nac. Comprador
       { wch: 30 }, // Email Comprador
+      { wch: 24 }, // Nombre Comprador
       { wch: 32 }, // Evento
       { wch: 24 }, // Sector / Tanda
       { wch: 12 }, // Precio
@@ -389,8 +415,10 @@ export default function AdminEventsManager({
       "Asistente Nombre",
       "Asistente Apellido",
       "DNI",
+      "WhatsApp / Telefono",
       "Fecha Nac Comprador",
       "Email Comprador",
+      "Nombre Comprador",
       "Evento",
       "Sector",
       "Precio ($)",
@@ -404,14 +432,24 @@ export default function AdminEventsManager({
       `"${t.attendeeName}"`,
       `"${t.attendeeLastName}"`,
       `"${t.attendeeDni}"`,
-      t.order.buyerBirthDate ? `"${new Date(t.order.buyerBirthDate).toLocaleDateString("es-AR")}"` : '"N/A"',
+      `"${t.order.buyerPhone || "N/A"}"`,
+      t.order.buyerBirthDate
+        ? `"${new Date(t.order.buyerBirthDate).toLocaleDateString("es-AR", {
+            timeZone: "America/Argentina/Buenos_Aires",
+          })}"`
+        : '"N/A"',
       `"${t.order.buyerEmail}"`,
+      `"${t.order.buyerName} ${t.order.buyerLastName}"`,
       `"${t.order.event.title.replace(/"/g, '""')}"`,
       `"${t.tier.name}"`,
       t.price === 0 ? '"GRATIS"' : t.price,
       `"${t.ticketCode}"`,
       t.status === "USED" ? "INGRESÓ" : "SIN INGRESAR",
-      t.checkedInAt ? `"${new Date(t.checkedInAt).toLocaleString("es-AR")}"` : "N/A",
+      t.checkedInAt
+        ? `"${new Date(t.checkedInAt).toLocaleString("es-AR", {
+            timeZone: "America/Argentina/Buenos_Aires",
+          })}"`
+        : "N/A",
     ]);
 
     const csvContent = "\uFEFF" + [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
@@ -1065,7 +1103,14 @@ export default function AdminEventsManager({
                       {tkt.tier.name}
                     </td>
                     <td className="py-3.5 px-4 text-gray-400">
-                      {tkt.order.buyerName} {tkt.order.buyerLastName}
+                      <div className="font-medium text-gray-300">
+                        {tkt.order.buyerName} {tkt.order.buyerLastName}
+                      </div>
+                      {tkt.order.buyerPhone && (
+                        <div className="text-[11px] text-emerald-400 font-mono mt-0.5 flex items-center gap-1">
+                          <span>📱 {tkt.order.buyerPhone}</span>
+                        </div>
+                      )}
                     </td>
                     <td className="py-3.5 px-4 font-mono text-[11px] text-gray-400">
                       {tkt.ticketCode}
